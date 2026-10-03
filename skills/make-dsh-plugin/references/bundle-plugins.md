@@ -42,6 +42,15 @@ bundle 插件是**独立 npm 包**（或包目录），声明 `dsh.bundle`：
 - 解析可达性取决于**安装位置**：只有装在 profile 树内的包能向上找到那个 fallback（见 [gotchas.md](gotchas.md) 6）
 - 本地开发要跑插件代码时，把 SDK link 进**该包自己的** `node_modules`（配方见 [gotchas.md](gotchas.md) 1），再按下面的「本地目录」安装
 
+**dsh 的 peer 门槛（会直接拒挂载）**：宿主只校验 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*`
+开头的 peer，用 `semver.satisfies(runtime, range, { includePrerelease: true })`；不满足就
+`dsh: skipping profile bundle "<pkg>"` 并整包不挂载（面板可见、功能全无）。两个可用写法：
+
+- `workspace:^` / `workspace:~` / `workspace:*`——**语义是「当前运行时」**，永远兼容
+  （想跟随挂载环境又不被 rc 线卡住时用它）；
+- 显式范围——预发布要显式出现在范围里（如 `^0.2.0-rc.1` 才接受 `0.2.0-rc.2`；
+  写 `^0.1.0-rc.6` 上界排除 0.2.0，即使 `includePrerelease` 也救不回来）。
+
 ## 安装与管理
 
 **安装**：`dsh plugin --profile web add <包路径>`——`<包路径>` 必须是**可解析的 npm 包**：

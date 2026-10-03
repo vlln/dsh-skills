@@ -155,6 +155,8 @@ grep -rn "workflowEngine" <dsh 安装>/node_modules/@deepseek-ai/*/lib/*.js | he
 | client `inject: ['settingsScope']` / 槽 `settings.plugin.item` | 服务 `configForms` / `settingsSchema`；槽 `plugins.item` / `plugins.bundle.config` / `plugins.row.config` | client 条目**永久 pending**（严格注入） |
 | `ctx.jobs.onJobDone(cb)` | `ctx.jobs.events.subscribe({ owners: 'all' \| 'scope' }, cb)` 的 `settled` 事件 | apply 抛 `TypeError` → `1 entry did not activate` |
 | `ctx.on('agent/session-start', ({ source }))` | `ctx.on('agent/created', ({ agent, source }))` | 静默：新会话记账/欢迎不再触发 |
+| `ctx.on('agent/disposed', (agent) => …)` | `ctx.on('agent/disposed', ({ agent }) => …)`（payload 包了一层） | 静默：回调拿到 undefined，销毁时的清理不跑 |
+| 会话消息 `source: { kind: 'plugin' }` | `{ kind: 'plugin:<插件名>' }`（v4 格式要求 producer-owned source kind） | 响亮：写入/重载会话时 `format v4 message requires a producer-owned source kind` |
 | `jobs.list(agent)`（caller 是 Agent 对象） | `jobs.list(sessionId)`（caller 是 SessionId 字符串） | 静默：按 agent 过滤恒不命中，只看得到 unowned 任务 |
 | `dsh.client.inject` 里列 `@deepseek-ai/dsh-client-runtime` | 该包 0.1.1-rc.2 后已不存在；平台种子表提供 `react` / `react-dom` / `@deepseek-ai/dsh-client-store` / `dsh-client-ui-slots` / `dsh-client-ui-primitives` | 未知包名被容忍，但作为示例配方是错的 |
 
@@ -184,3 +186,21 @@ grep -rn "settingsScope\|onJobDone\|settings\.plugin\.item" \
 - 结论**绑定具体基线版本号**（"0.1.5-rc.2 实测"而不是"最新版"）；跨 rc 复核前不要把旧结论当事实用。
 - 与官方文档冲突时，**以实际安装的运行时为准**（文档领先是常态），并把差异写回来。
 - 验证环境用**安装版 dsh**（`npm i @deepseek-ai/dsh@<rc>` / `npx -p … dsh`）。直接跑源码 checkout（`node apps/cli/lib/bin.js`）在隔离 `DSH_HOME` 里会失败：profiles 层 fallback 镜像的是**安装目录**的依赖，而仓库根 `node_modules/@deepseek-ai` 只有零星几个包（安装版有 200+），于是官方包集体解析失败、整树 `plugin tree failed to load`，错误全指向官方包——**极易误判成自己的插件坏了**。
+
+## 10. 平台种子模块的导出名会随 rc 改（图标/控件取到 undefined）
+
+`getStaticModules()` 交给 client bundle 的是一个**平台内部模块表**，导出名不保证稳定。0.2.0 实测：
+图标是 `<Name><Regular|Medium>` 两种尺寸后缀（`IconRefreshOutlineRegular`），旧写法
+`IconRefreshOutline16` **已不存在**——`require()` 取到 undefined **不在导入时报错**，要渲染时才炸：
+
+```
+slot entry crashed in '<slot 名>' + 控制台 Minified React error #130（组件类型无效）
+```
+
+整个槽静默失效（同一 bundle 的其它槽可能照常），排查时容易误以为是槽契约问题。
+
+**纪律**：写 `require(...)` 解构出来的名字（图标、控件、工具函数）先在**应用 bundle 里核实存在**
+再落笔；升级基线时把这些名字当回归点重扫（`grep -o "Icon[A-Za-z]*" src/client/*.tsx`）。
+0.2.0-rc.2 的种子表清单（实测）：`react`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、
+`@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`、`@deepseek-ai/dsh-client-ui-slots`、
+`@deepseek-ai/dsh-client-ui-primitives`、`@deepseek-ai/dsh-client-ui-dockkit`。

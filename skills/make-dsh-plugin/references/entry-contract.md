@@ -93,6 +93,10 @@ export function apply(ctx, config) {
 - 能力上限是完整 Cordis——事件（`ctx.on`）、服务（`ctx.provide`）、命令、system prompt、TUI，无需声明。
 - **依赖解析**：entry 可 import 官方包（`@deepseek-ai/*`、`cordis`），官方运行时经 profile pnpm 闭包注入（`$DSH_HOME/profiles/node_modules` 扁平 fallback）；**`dependencies`/`peerDependencies`/`devDependencies` 三处都留空**——官方包虽在公共 npm 可见，但自带整条 peer 闭包，单独安装一定失败（细节与本地 link 配方见 [gotchas.md](gotchas.md) 1）。解析可达性依赖安装位置（profile 树内可达），见 [gotchas.md](gotchas.md) 6。
 - **注册是 effect**：`ctx.tools.register` 返回 disposer，用 `ctx.effect()`/`ctx.on()` 持有生命周期，disable 时清理。
+- **必须命名导出**：`name` / `inject` / `apply`（以及 `Config`）要挂在**命名导出**上，不要写成
+  `export default { name, inject, apply }`——loader 的 `unwrapExports` 会取 `exports.default`
+  并丢掉同一模块上的命名导出，于是 `Config` 读不到（`--dump-config-schema` 里该条目
+  `status: "absent"`），设置命名空间永不服务，且**没有任何报错**。
 - **设置面靠 `Config` 导出**（可选）：只有导出 schema 的条目才有设置命名空间（= 条目 id），
   live 字段标 `.volatile()`（宿主原地提交新值、不重挂载，并发 `loader/volatile-update`）；
   插件读值走 `apply(ctx, config)` 的第二个参数。客户端把配置页注册进 Plugins 页的槽——

@@ -137,7 +137,8 @@ export function apply(ctx) {
 
    ```sh
    dsh --profile web --dump-config-schema | grep -A3 '"id": "my-plugin"'
-   # 期望 status: "schema" 与 configRef；"absent" = 没导出 Config 或模块没加载
+   # 期望 status: "schema" 与 configRef；"absent" = 模块没加载，或 entry 用了 export default
+   # 把 Config 遮住（loader 的 unwrapExports 只取 default——见 entry-contract.md）
    ```
 
 2. **卡片渲染**（浏览器，headless Chrome CDP）：打开 `Plugins` 页 → 点

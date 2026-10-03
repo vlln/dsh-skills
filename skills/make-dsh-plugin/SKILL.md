@@ -53,8 +53,10 @@ repository-plugin、`__ModuleLoader__` 之外的旧协议、`dsh registry` CLI�
 
 **0.1.6–0.2.0 三批换代**（从这三条线之前的版本升上来时，先把 [gotchas.md](references/gotchas.md) 8 读完）：
 设置面从 `settings.plugin.item` / `settingsScope` / `settings.register` 换成 Plugins 页的三个槽 +
-`configForms` + 条目 `Config` 导出；`jobs` 的任务终态与 `agent` 的会话启动事件改名。旧名字**不报错**——
-client 侧表现为条目永久 pending，Node 侧表现为静默失效（服务惰性读取）。
+`configForms` + 条目 `Config` 导出（`Config` 要挂在**命名导出**上，`export default` 会把它遮住）；
+`jobs` 的任务终态与 `agent` 的会话启动/销毁事件改了名与 payload；client 侧的**平台模块导出名**
+（图标/控件）也换过，取到 undefined 会在渲染时崩槽（[gotchas.md](references/gotchas.md) 10）。
+旧名字**不报错**——client 侧表现为条目永久 pending，Node 侧表现为静默失效（服务惰性读取）。
 
 **0.1.5 起官方新增的相邻能力**（本 skill 不展开，需要时读官方文档）：bundle 行可自带 CLI
 （`inject = ['cmdlineArgs']` + `parseCmdline`，启动器把同一份不可变参数快照交给每个插件）；
