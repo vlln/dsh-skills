@@ -1,6 +1,9 @@
 # 官方设置面集成（条目 Config + plugins.bundle.config）
 
-第三方插件把自己参数的配置页挂进官方 **设置 → 插件** 的方法。基线 **0.2.0-rc.2**
+第三方插件把自己参数的配置页挂进**侧边栏 Plugins 页**的方法——注意**不是**「设置 → 插件」：
+那里现在是**只读的插件清单**（`dsh-client-ui-settings-plugin-inventory` 的 Plugin list tab，
+外壳是 `dsh-client-ui-settings-plugins` 的 `settings.plugins.tab` 槽，不提供配置写入）。
+基线 **0.2.0-rc.2**
 （实测参考实现：`vlln/whale-girl` 的配置卡片）。分两个 half：Node half 用**条目
 `Config` schema** 声明设置命名空间；client half 把配置页注册进 **Plugins 页的槽**。
 
@@ -12,6 +15,12 @@
 - **设置命名空间 = 导出 `Config` schema 的条目 id`**。插件不再自行注册命名空间名字；
   宿主 `dsh-settings` 的 `describe()` 会跳过没有 `Config` 的条目——没导出它就等于
   「这个插件没有设置面」（配置页不出现、旧 `settings.yaml` section 不被读取）。
+- **配置入口在侧边栏 Plugins 页，不在 Settings**。Settings → 插件 是**只读清单**（inspect only，
+  连官方自己的插件页都不放在那儿）；写入面只有插件包页/行页上注册的配置卡片。
+- **`autoGenerate` 不是自动设置页**：设置描述符里带这个布尔（语义是「没有自定义页时是否允许生成页面」），
+  但 shipped web UI 里**没有消费方**（实测：全仓只在设置管线与线上 codec 之间传递）——所以
+  **只声明 `Config` 不会长出任何界面**。要 UI 就必须注册卡片；否则用户只能手改 profile patch 里的
+  `config:`（手写 YAML，等于没有 GUI 配置面）。
 - **四处同名**（实测：任一处漂移即卡片静默消失）：
   `cordis.patch.yml` 的 insert 条目 id、`package.json` 的包名、Node half 的命名空间常量、
   client half 的命名空间字面量。宿主用**条目 id** 作命名空间、用**包名**作

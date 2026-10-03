@@ -341,8 +341,8 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
 ```
 ## 插件管理
 
-装/卸/启停用官方 CLI：`dsh plugin --profile web add|remove <包>`；已装插件在
-**设置 → 插件**（Plugins 页）里查看与配置——每个插件自己的配置页挂在那里。
+装/卸/启停用官方 CLI：`dsh plugin --profile web add|remove <包>`；已装插件在**侧边栏 Plugins 页**
+里查看与配置——每个插件自己的配置页挂在那个包页上（Settings 里的「插件」只是只读清单，改不了配置）。
 ```
 
 每个按本 skill 产出的插件 README 都带此节（安装说清通道与重启条件即可）。
