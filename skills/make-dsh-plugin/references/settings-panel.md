@@ -99,20 +99,22 @@ export function apply(ctx) {
   ctx.effect(() => ctx.configForms.whileServed([NAMESPACE], () =>
     ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
       name: 'plugins.bundle.config',
-      key: NAMESPACE,                            // key = bundle 包名
+      key: PKG_NAME,                             // key = **bundle 包名**（= package.json name）
+                                                 // 注意：它可能与命名空间/条目 id 不同名——whale-girl 三者同名只是巧合
       locale: NS,
       inject: () => ({ hooks: { myForm: { getSnapshot: form.getSnapshot, subscribe: form.subscribe } }, ...form.actions }),
     }, MyCard))), 'my-plugin: page')
 }
 ```
 
-槽选择（都在 `dsh-client-ui-plugin-manager` 声明，keyed/list 形态与渲染位置不同）：
+槽选择（`plugins.*` 三槽由 `dsh-client-ui-plugin-manager` 声明，keyed/list 形态与渲染位置不同）：
 
 | 槽 | key | 渲染位置 | 何时选 |
 |---|---|---|---|
 | `plugins.bundle.config` | bundle 包名 | 包页上「描述与行清单之间」的配置区，页面只请求 `page` 视图 | 自己的 bundle 自带配置（推荐；实测可用） |
 | `plugins.row.config` | `<包名>#<行 id>` | 包页该行的「配置」入口，开独立页 | 按 patch 行分别配置 |
 | `plugins.item` | —— （list 槽，用一个 `id`） | Plugins 页「官方」组的卡片 | 官方语义位置，第三方 bundle 不建议占用 |
+| `settings.plugins.tab` | —— （list 槽，用一个 `id`） | **Settings → 插件** 那一节里的 tab | 别往这儿挂配置页——官方只在那里放只读清单，插件的配置入口一律在侧边栏 Plugins 页 |
 
 渲染契约：
 
