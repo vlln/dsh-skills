@@ -1,4 +1,4 @@
-# 官方设置面集成（条目 Config + plugins.bundle.config）
+# 官方设置面集成（条目 Config + Plugins 页卡片）
 
 第三方插件把自己参数的配置页挂进**侧边栏 Plugins 页**的方法——注意**不是**「设置 → 插件」：
 那里现在是**只读的插件清单**（`dsh-client-ui-settings-plugin-inventory` 的 Plugin list tab，
@@ -23,8 +23,8 @@
   `config:`（手写 YAML，等于没有 GUI 配置面）。
 - **四处同名**（实测：任一处漂移即卡片静默消失）：
   `cordis.patch.yml` 的 insert 条目 id、`package.json` 的包名、Node half 的命名空间常量、
-  client half 的命名空间字面量。宿主用**条目 id** 作命名空间、用**包名**作
-  `plugins.bundle.config` 的 key。
+  client half 的命名空间字面量。宿主的**设置命名空间 = 条目 id**；包名是 bundle 身份
+  （选 `plugins.bundle.config` 时它还是那个槽的 key，选 `plugins.item` 时只作卡片 id 的字面量来源）。
 - **live 字段靠 `.volatile()`**：schema 上标了 volatile 的**叶**被宿主换成实时引用
   （`createVolatile` → 冻结对象 `{ get() }`，可以嵌在普通对象/数组里）。改值由宿主原地
   提交进运行中的 fiber、**不重挂载**，随后发 `loader/volatile-update(paths)`。
@@ -97,15 +97,20 @@ export function apply(ctx) {
   const form = new MyForm(scope)                 // 暂存/保存语义见 §4
   ctx.effect(() => () => form.dispose(), 'my-plugin: form')
   ctx.effect(() => ctx.configForms.whileServed([NAMESPACE], () =>
-    ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
-      name: 'plugins.bundle.config',
-      key: PKG_NAME,                             // key = **bundle 包名**（= package.json name）
-                                                 // 注意：它可能与命名空间/条目 id 不同名——whale-girl 三者同名只是巧合
+    ctx.slots.inject('plugins.item', () => ctx.slots.register({
+      name: 'plugins.item',                      // Plugins 页「官方」组的卡片
+      id: PKG_NAME,                              // list 槽要唯一 id；取包名字面量即可
+      order: 50,                                 // 官方同族卡片占 10–40，第三方排其后
+      label: () => t('title'),                   // 卡片标题（thunk：按当前语言重读）
       locale: NS,
       inject: () => ({ hooks: { myForm: { getSnapshot: form.getSnapshot, subscribe: form.subscribe } }, ...form.actions }),
     }, MyCard))), 'my-plugin: page')
 }
 ```
+
+组件按该槽的两段视图实现：`view === 'summary'` 回一句描述（既作列表一行、又作详情页副标题），
+`page` 画字段区与保存脚注（标题/描述 chrome 由页面画）。若改选 `plugins.bundle.config`，
+把槽名换成它、把 `id`/`order`/`label` 换成 `key: PKG_NAME` 即可（其余不变）。
 
 槽选择（`plugins.*` 三槽由 `dsh-client-ui-plugin-manager` 声明，keyed/list 形态与渲染位置不同）：
 
