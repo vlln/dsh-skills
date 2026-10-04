@@ -109,12 +109,14 @@ export function apply(ctx) {
 
 槽选择（`plugins.*` 三槽由 `dsh-client-ui-plugin-manager` 声明，keyed/list 形态与渲染位置不同）：
 
-| 槽 | key | 渲染位置 | 何时选 |
+| 槽 | key / id | 渲染位置 | 何时选 |
 |---|---|---|---|
-| `plugins.bundle.config` | bundle 包名 | 包页上「描述与行清单之间」的配置区，页面只请求 `page` 视图 | 自己的 bundle 自带配置（推荐；实测可用） |
+| `plugins.bundle.config` | 包名 | 包页上「描述与行清单之间」的配置区（页面只请求 `page` 视图） | 官方契约给自有 bundle 的默认位；代价是要进包页才见配置 |
 | `plugins.row.config` | `<包名>#<行 id>` | 包页该行的「配置」入口，开独立页 | 按 patch 行分别配置 |
-| `plugins.item` | —— （list 槽，用一个 `id`） | Plugins 页「官方」组的卡片 | 官方语义位置，第三方 bundle 不建议占用 |
-| `settings.plugins.tab` | —— （list 槽，用一个 `id`） | **Settings → 插件** 那一节里的 tab | 别往这儿挂配置页——官方只在那里放只读清单，插件的配置入口一律在侧边栏 Plugins 页 |
+| `plugins.item` | `id`（自取，如包名） | **Plugins 页「官方」组里的卡片**（`summary` 作列表一行、`page` 开详情页） | 要列表里一眼可见就选它——代价是占用官方插件的语义位（契约注明官方设置页在此），第三方 bundle 用它属于刻意取舍 |
+| `settings.plugins.tab` | `id`（自取） | **Settings → 插件** 那一节里的 tab | 别往这儿挂配置页——官方只在那里放只读清单，插件的配置入口一律在侧边栏 Plugins 页 |
+
+本 skill 的实测参考实现 `vlln/whale-girl` 用的是 **`plugins.item`**（发现性优先，取舍理由见其决策记录）。
 
 渲染契约：
 
