@@ -204,3 +204,23 @@ slot entry crashed in '<slot 名>' + 控制台 Minified React error #130（组�
 0.2.0-rc.2 的种子表清单（实测）：`react`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、
 `@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`、`@deepseek-ai/dsh-client-ui-slots`、
 `@deepseek-ai/dsh-client-ui-primitives`、`@deepseek-ai/dsh-client-ui-dockkit`。
+
+## 11. 往会话里写消息：v4 格式的硬要求
+
+插件往会话日志写消息（注入上下文、合成一等 `assistant/message`、写 `tool/result`）时，v4 的采用
+校验会拒绝旧形状——**症状不总在写入点**：有的当场抛，有的要等**下一次读取这条日志**才炸，而那时
+整个会话已经打不开。
+
+| 要求 | 旧写法 | 现行写法 | 缺失/写错的后果 |
+|---|---|---|---|
+| `source.kind` 是**生产者自有**的 kind | `{ kind:'plugin', plugin:'X' }` | `{ kind:'plugin:X' }`（= 迁移器对旧日志的同一改写；自定义行可用自有 kind，如 `fork-answer`） | 响亮：`format v4 message requires a producer-owned source kind` |
+| `assistant/message` 必须带 `stream` | 无此字段 | `stream: []`（合成消息没有模型分片流） | **会话打不开**：重载时 `seed assistant/message … has invalid settlement fields` |
+| `tool/result` 的 message | `role:'user'`、无顶层 `toolCallId` | `role:'tool'` + 顶层 `toolCallId` | 采用校验拒绝 |
+
+判据来源：`dsh-session-format-v3-to-v4` 的 `assertV4MessageSources` / `rewriteV3MessageSource` /
+`producerKind`、`dsh-session` 的 `assertAssistantSettlementShape`、`dsh-llm` 的 `MessageSourceMap`
+（其注释明说*没有共享的 `plugin` 兜底 kind*）。
+
+**顺带一处客户端导航**：切当前会话的入口在 0.2.0 从 `ctx.sessions.open()` / `openSubagent()`
+换成 **`ctx.uiWorkspace.openSession(target)`**（导航归视图所有者；`target` 是 session id 或
+durable 子会话地址）。要在插件里把用户切到另一条会话，inject 里加 `uiWorkspace`。
