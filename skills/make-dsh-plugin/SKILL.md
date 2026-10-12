@@ -48,6 +48,10 @@ repository-plugin、`__ModuleLoader__` 之外的旧协议、`dsh registry` CLI�
 1. **发布与生态纪律**——发布检查清单、仓库 description/topics 规则、README 读者规则、门禁与决策记录、安装说明纪律（Step 5b / Step 6）；
 2. **实测坑与验证纪律**——`references/gotchas.md`（踩出来的领域事实）与 `references/install-and-verify.md`（含"负控"这类方法论）。
 
+**新增会话页签前先读** [gotchas.md](references/gotchas.md) 12：`conversation.view` 各页签**共用**
+会话内容区，外壳的左右拖动**宽度手柄**会跟着出现在你的页签上（`[data-width-handle]`，
+两条 `col-resize` 竖线）——用「给视图挂稳定 data 属性 + `:has([data-…-view]) [data-width-handle]{display:none}`」隐藏它。
+
 **事实带基线**：本 skill 的实测事实标注核实时的 dsh 版本（当前 **0.2.0-rc.2**；带日期的早期条目为 0.1.5-rc.2 / 0.1.2-rc.1）。
 升级基线时逐条重核——服务名、槽名、manifest 字段与安装行为都会变。
 

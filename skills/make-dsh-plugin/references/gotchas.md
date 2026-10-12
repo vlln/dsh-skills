@@ -224,3 +224,46 @@ slot entry crashed in '<slot 名>' + 控制台 Minified React error #130（组�
 **顺带一处客户端导航**：切当前会话的入口在 0.2.0 从 `ctx.sessions.open()` / `openSubagent()`
 换成 **`ctx.uiWorkspace.openSession(target)`**（导航归视图所有者；`target` 是 session id 或
 durable 子会话地址）。要在插件里把用户切到另一条会话，inject 里加 `uiWorkspace`。
+
+## 12. 新增 `conversation.view` 页签会继承「对话」页签的**左右拖动宽度手柄**（0.2.0-rc.2 实测）
+
+**现象**：插件注册的会话页签（`conversation.view`，与「对话」「轨迹」并列）上出现两条竖线、
+鼠标移上去变成 `col-resize` 还能拖动——那是「对话」页签用来调**转写内容宽度**的手柄。
+
+**机制**：这些页签**共用同一块会话内容区**，而宽度手柄由外壳渲染、**不属于任何视图**：
+
+```
+[data-conversation-region=content]        ← 各页签共用
+├── [data-conversation-scroll]            ← 当前视图的内容（你的页签在这里面）
+├── div[data-width-handle=left]           ← 外壳的宽度手柄（兄弟姐妹，不是视图的）
+└── div[data-width-handle=right]
+```
+
+来源是 `dsh-client-ui-conversation` 的 `ConversationWidthControls`（作为 factory 槽
+`widthControls` 注册，默认实现是那两个手柄）：`container === null || phase !== "active"` 时返回
+`null`，**其余情况一律渲染**——与"当前是哪个页签"无关。
+
+**正解（两步，都很短）**：
+
+1. 给你的视图根元素挂一个**稳定的 data 属性**（例：`data-myplug-view`）。
+2. 在插件注入的样式表里加一条：
+
+   ```css
+   :has([data-myplug-view]) [data-width-handle]{display:none}
+   ```
+
+**前提已实测**：切页签时**另一个视图会被卸载**（在「分叉」页签上数 `[data-chat-node-key]` = 0），
+所以 `:has()` 只在你的页签挂载时成立，**不会**在「对话」页签上误伤（实测切回去 `display:block`）。
+
+**两个坑**：
+
+- **不要写 `:has(> [data-myplug-view])`**：你的视图通常挂在 `[data-conversation-scroll]` **里面**，
+  是那块共享区域的孙节点，`>` 匹配不上——实测 `display` 仍是 `block`。
+- **不要锚官方 CSS module 的类名**（`wSkVaW_widthHandle` 这类哈希名，换版本就变）；
+  `[data-width-handle]` 是官方自己也在用的稳定属性，而且官方**同样**用 `:has()` 隐藏它
+  （`ConversationRoot` 的 `.widthHandle{display:none}`，条件是 `:has([data-conversation-composer-overlay])`）
+  ——照这个思路做就是"官方同款"。
+
+**别顺手把 composer 也藏了**：输入框座（`[data-composer-seat]` / `data-conversation-region=composer`）
+同样是共享的，但它在任何页签上都有意义（可以边看家族树边发消息）。只有那些**明确只服务
+「对话」页签**的外来件才该隐藏。
