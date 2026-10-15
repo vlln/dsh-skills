@@ -71,7 +71,7 @@ bundle 插件是**独立 npm 包**（或包目录），声明 `dsh.bundle`：
 - **两条不需要构建授权的渠道**：**npm 预构建**（`pnpm publish` 时构建好 `lib/`，用户 `dsh plugin add <pkg>` 拿到产物）与 **tarball**（`pnpm pack` 出包，用户 `dsh plugin add ./x-0.1.0.tgz`）。
 - **`allowBuilds` 的安全语义要写进安装说明**：放行 = 允许该包在安装时于用户机器上执行代码，且不在 agent 沙箱内；只对可信源码放行，并建议钉 commit（细节见 [gotchas.md](gotchas.md) 1c）。
 
-**写安装说明时**（README/skill 输出）：给出**用户能直接复制执行**的命令——本地路径写清 bundle 子目录与构建前提；git 源写清子目录语法（`&path:/`）、prepare 构建与 `allowBuilds` 放行；并说明**装完要重启 web**（层栈 boot 合成）。不要给「指向仓库根」「裸本地目录」或「臆造协议」的说明。
+**写安装说明时**（README/skill 输出）：给出**用户能直接复制执行**的命令——本地路径写清 bundle 子目录与构建前提；git 源写清子目录语法（`&path:/`）、prepare 构建与 `allowBuilds` 放行；按目标运行时验证生效条件，不默认附加重启要求。不要给「指向仓库根」「裸本地目录」或「臆造协议」的说明。
 
 - **启停/多层归属**：同名 `cordis.patch.yml` 出现在多个层（bundle 包内声明 / profile 层 / home 层 / `--patch` overlay）别写错层，见 [gotchas.md](gotchas.md) 1b
 
@@ -79,7 +79,7 @@ bundle 插件是**独立 npm 包**（或包目录），声明 `dsh.bundle`：
 
 - 挂载后 boot graph 含 bundle id；`/plugins/<id>/client.js` 200（若带 client）
 - 改 Node half 源码需 web 重启（ESM 缓存）
-- 改 client bundle 重装 + 刷新页面即可
+- 改 client bundle：先确保产物已重建，再验证 HMR 或页面刷新后实际加载的新代码
 
 ## 参考实现
 

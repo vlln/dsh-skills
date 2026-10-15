@@ -2,21 +2,21 @@
 
 0811 起外部插件统一经 web profile 安装，两条通道（本文件是 SKILL.md 的深读材料，开发安装面时读取）。
 
-## Bundle 插件安装（重启生效）
+## Bundle 插件安装
 
 ```sh
 dsh plugin --profile web add <包路径>
 ```
 
-`<包路径>` = 含 `package.json#dsh.bundle` 的 npm 包目录/git 源（`dsh plugin add` 转发 pnpm + 按已安装状态把声明 `dsh.bundle` 的依赖加进 profile 层栈）。本地目录 `cd` 到包目录后 `add .`（dsh 锚定 `.` 为绝对路径）；git 源 monorepo 子目录 `#<commit>&path:/<子目录>`（**Windows 注意：`dsh plugin` 经 cmd.exe 转发，`&` 是命令分隔符会拆开命令——给用户的安装说明写不带 `&` 的 `#path:/<子目录>` 形式，取默认分支 HEAD，跨平台；钉分支需绕开 dsh 转发，见 [gotchas.md](gotchas.md) 1c**），**产物入库（推荐）→ 真一行**，不入库则 `prepare` + `allowBuilds` 放行——写法细则与坑见 [bundle-plugins.md](bundle-plugins.md)「安装与管理」与 [gotchas.md](gotchas.md) 1c；bundle 不声明官方包依赖（见 [gotchas.md](gotchas.md) 1）。装完**重启 web**（层栈在 boot 合成）。
+`<包路径>` = 含 `package.json#dsh.bundle` 的 npm 包目录/git 源（`dsh plugin add` 转发 pnpm + 按已安装状态把声明 `dsh.bundle` 的依赖加进 profile 层栈）。本地目录 `cd` 到包目录后 `add .`（dsh 锚定 `.` 为绝对路径）；git 源 monorepo 子目录 `#<commit>&path:/<子目录>`（**Windows 注意：`dsh plugin` 经 cmd.exe 转发，`&` 是命令分隔符会拆开命令——给用户的安装说明写不带 `&` 的 `#path:/<子目录>` 形式，取默认分支 HEAD，跨平台；钉分支需绕开 dsh 转发，见 [gotchas.md](gotchas.md) 1c**），**产物入库（推荐）→ 真一行**，不入库则 `prepare` + `allowBuilds` 放行——写法细则与坑见 [bundle-plugins.md](bundle-plugins.md)「安装与管理」与 [gotchas.md](gotchas.md) 1c；bundle 不声明官方包依赖（见 [gotchas.md](gotchas.md) 1）。安装后检查实际挂载状态；是否需要重启见下表，不由 bundle 形态单独决定。
 
-## 纯 cordis 插件安装（实时生效）
+## 纯 cordis 插件安装
 
 ```sh
 dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules）
 ```
 
-然后 profile `cordis.patch.yml` 写 insert 行（**配置 HMR 实时挂载，零重启**）：
+然后 profile `cordis.patch.yml` 写 insert 行（启用配置热协调时可实时挂载；CLI add 普通依赖本身不自动生成 insert）：
 
 ```yaml
 - insert:
@@ -26,16 +26,62 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 
 ## 验证按改动面
 
-| 改动触达 | 验证 |
+**核查记录：安装版 DSH 0.2.0-rc.2 的实现；不是对所有版本的承诺。**
+先查有效组合中是否有 `hmr` 服务，以及源码 watcher 的 root/ignored。该版 `dsh-base`
+在有 profileContext 时加载 HMR，默认 `root: []`：配置可热协调，源码监听另行启用。
+
+| 改动 | 该版的处理与验证 |
 |---|---|
-| client/ 源码或构建 | 重建（`build-client.mjs`）+ 浏览器冒烟（headless Chrome dump-dom 断言 DOM marker 存在、无 "Failed to load plugins"） |
-| assets/ | 重装 + 刷新页面即可（路由按请求读磁盘，无需重启 web） |
-| index.mjs / src（Node half） | 门禁 + **重启 web**（ESM 缓存，见 [gotchas.md](gotchas.md) 2） |
-| `inject` / 服务名字面量 / 依赖形态 | 重启 web + **真调一次工具或命令**（见下「三条硬规矩」；这类改动 boot 期看不出来） |
+| CLI 新增/移除 bundle | 安装器更新 profile bundles 列表；有 HMR 时监视 manifest 并重新协调层栈。验证插件实际挂载/卸载，不默认重启 |
+| GUI 首装 bundle、启停 | 有 HMR 时调用配置协调；没有 HMR 时按返回的 restart-required / stop-profile 提示处理 |
+| 已装包升级、同路径重装 | GUI 对已存在依赖升级明确返回 restart-required；CLI 的 bundles 列表未变时配置 watcher 会跳过。不要把重装当成代码热更新 |
+| volatile 配置 | 仅 volatile 值变更时原地更新；其他配置变更可能重新挂载 |
+| Node half 源码 | 显式配置源码 HMR 且路径命中时可清缓存重载；默认不监听源码，node_modules 通常被忽略。未生效才用重启兜底 |
+| client half | 先重建产物；按客户端 HMR / 页面刷新验证新 bundle。HMR 接收器存在不等于构建 watcher 在运行 |
+| 顶层 icon / 图标资源 | 元数据读取直接读 manifest 与图片文件；刷新 Plugins 数据可更新，无须据此重启 Node 插件。仍需验证实际图片和打包结果 |
+| bundle 内部 patch 单独变化 | 不等于 profile bundles 列表变化；须验证配置重读是否实际触发，不假定所有文件都受 watch |
 
-bundle 插件同此表；额外确认挂载后 `__DSH_BOOT__` 含 client 行、`/plugins/<id>/client.js` 200（若带 client half）、无 `loaded without registering` 报错。
+依据：`dsh-hmr/lib/index.js` 的 profile manifest watcher、partialReload；
+`dsh-plugin-manager/lib/index.js` 的 installPackage/reload/listBundles；
+`cordis-plugin-loader/lib/index.js` 的 volatile 更新；`dsh-app-boot` 的 readPluginMeta/iconOf。
+升级基线时重新核查这些路径，**不要再以“ESM 有缓存”推出“一律重启”**。
 
-**装/删 bundle 需重启 web**：层栈（`dsh.profile.bundles`）在 boot 时合成；`patchReload` 只覆盖**用户 patch 文件**的热重载，不含层栈。精确的层优先级、flag 与 profile 机制以官方 [CLI 行为参考](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/cli/reference/README.md)为准。
+图标补充实测：autofork 仅新增 manifest icon 与 SVG 后，刷新隔离实例的 Plugins 页即显示新图标，
+`decode()` 成功；该操作未重启服务。此证据仅覆盖元数据/图标，不证明 Node 代码热更新。
+
+## 插件图标：机械验证与视觉验收
+
+绘制/修改图标及发布插件时执行。先核对**实际安装运行时**的
+`@deepseek-ai/dsh-package-manifest` 类型与 `dsh-app-boot` 的 `iconOf`、manifest
+读取逻辑，并记录版本；不要用领先的 master 文档替代安装版契约。
+
+**运行时契约**：`package.json` 顶层 `icon?: string`（不是 `dsh.icon`）。
+路径相对 manifest 目录，支持 SVG / PNG / JPEG / WebP，文件大小 **≤256 KiB**；
+解析后的 **realpath 必须仍在 manifest 目录内**，符号链接不能绕过目录边界。
+`iconOf` 按扩展名、路径、大小校验后转成 data URL；宿主读取包导出的
+`package.json`。它不是 client bundle 内的图标组件，也不经普通 assets 路由。
+
+### 机械验证（可自动断言，不证明好看）
+
+- 检查顶层 `icon` 路径、扩展名、字节数及 realpath 边界；SVG 能解析且自包含，
+  无字体字形、外链、脚本，不依赖宿主 `currentColor`。
+- 检查 `files` 白名单包含图标，`exports["./package.json"]` 指向 manifest；
+  **检查实际 pack 的 tarball 内容**，不能只看工作树。安装该产物后从 profile
+  解析 `<包名>/package.json`，确认读到的 `icon` 及图标文件都正确。
+- 用隔离 `DSH_HOME` 和独立端口安装、启动验证宿主，刷新并打开**侧边栏 Plugins 页**。
+  定位该包的实际 `<img>`，确认 `src` 是预期图标的 data URL，而非默认占位图；
+  等待加载后断言 `complete === true` 且 `naturalWidth > 0`（可再用 `decode()`）。
+  文件存在、页面 200、DOM 中有 `<img>` 均不足以证明图片成功加载。
+
+### 视觉验收（必须实际看渲染结果）
+
+- 查看真实 Plugins 页截图/浏览器中的图像，在列表实际尺寸及浅/深主题下检查：
+  轮廓可辨、留白与官方图标协调、没有裁切或过细笔画，颜色对比足够、透明背景正常。
+  放大预览可辅助，但不能代替实际展示尺寸。
+- 对用户指定标记核对形状与语义，不以字体渲染是否恰好成功代替路径绘制。
+- **分别报告机械检查与视觉检验的证据**（运行时版本、产物、页面/截图与观察结论）。
+  没有浏览器或无法查看图片时，明确写“视觉验收未完成”，请用户看图确认，
+  不得把解析成功、尺寸断言或文件存在写成“视觉通过”。
 
 ## 验证的三条硬规矩
 

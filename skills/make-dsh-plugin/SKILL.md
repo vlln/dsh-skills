@@ -19,8 +19,8 @@ requires:
 # 创建官方 bundle / cordis 插件
 
 本 skill 构建 **0811 官方形态**的插件：外部插件统一是 npm 包，经 web
-profile 安装——声明 `dsh.bundle` 的走层栈（重启生效），纯 Cordis 包走
-profile `cordis.patch.yml` insert 行（配置 HMR 实时生效）。**没有**
+profile 安装——声明 `dsh.bundle` 的走层栈，纯 Cordis 包走
+profile `cordis.patch.yml` insert 行。生效方式取决于宿主的热更新配置，不由包形态单独决定。**没有**
 repository-plugin、`__ModuleLoader__` 之外的旧协议、`dsh registry` CLI——
 旧机制已于 2026-08 移除（0811 起 repository-plugins 机制删除）。
 
@@ -87,9 +87,9 @@ Cordis 包并运行其 host 与浏览器两半，`tool-cordis` 查询运行时�
 | 带组合层（多行 insert/config/disabled 随包分发） | npm 包 + `dsh.bundle` | bundle 层栈 | 读 `references/bundle-plugins.md` |
 
 **核心判据**（0811 分类）：包是否声明 `dsh.bundle.patch`。声明 = 一层组合
-patch（多个 insert/config/disabled 行）→ `dsh plugin --profile web add` 进层栈，
-**重启生效**；无声明 = 单个 Cordis 插件 → profile `cordis.patch.yml` insert
-行，**配置 HMR 实时生效**。带 UI 的独立插件两类皆可（自渲染 client 在
+patch（多个 insert/config/disabled 行）→ `dsh plugin --profile web add` 进层栈；
+无声明 = 单个 Cordis 插件 → profile `cordis.patch.yml` insert
+行。两者都须按目标运行时的配置协调/HMR能力验证生效，不能一律要求重启。带 UI 的独立插件两类皆可（自渲染 client 在
 bundle 里照常工作）——选型看是否需要组合层，而非 UI 形态。
 
 ## Step 1：仓库布局
@@ -98,7 +98,8 @@ bundle 里照常工作）——选型看是否需要组合层，而非 UI 形态
 
 ```
 my-plugin/
-├── package.json            # name/version + main/exports + dsh.bundle/dsh.client
+├── package.json            # name/version + main/exports + icon + dsh.bundle/dsh.client
+├── icon.svg                # 必需：Plugins 页的插件标识（非功能截图）
 ├── cordis.patch.yml        # dsh.bundle 声明的组合层（insert 挂载自身）
 ├── index.mjs               # Node half 入口：完整 Cordis 插件（main/exports["."]）
 ├── client/  lib/client.js  # client bundle 源码 / 构建产物（dsh.client 通道）
@@ -127,6 +128,22 @@ my-plugin/
 声明写法（`dsh.skills` 相对路径列表 / `dsh.mcpServers` 的 server-id → 启动
 配置映射）与 SKILL.md 写法规范（frontmatter / 正文模式 / <500 行，遵循
 make-skill）见 `references/entry-contract.md` 对应小节——不要发明竞争格式。
+
+## Step 2b：绘制插件图标（必做）
+
+每个 npm 插件都要绘制并验证 Plugins 页图标，包括没有 client half 的插件；
+仅走文件系统发现的纯 skill 包不适用。**这是交付要求，不是运行时必填字段**。
+
+- 先查看目标基线的官方实验插件图标，按其简洁风格绘制能表达本插件功能的 SVG。
+  观测样式是 **36×36 透明画布、主体约在 8..28、少量蓝/青渐变**，不是硬 API；
+  不要照搬别的插件身份。用户指定的标记优先，例如 autofork 的 `⑂` 仅是该插件
+  的标记，需画成路径/几何形状，不把它变成所有插件的模板。
+- 使用显式填色/描边；SVG 作为 `<img>` **不继承宿主 `currentColor`**。
+  不用字体字形、外链资源或脚本；不要把 README 功能截图当作插件图标。
+- 在 **`package.json` 顶层**写 `"icon": "./icon.svg"`，**不是 `dsh.icon`**；
+  `files` 打包白名单包含图标，并保留 `exports["./package.json"] = "./package.json"`。
+- 完成前读 `$_S/references/install-and-verify.md`「插件图标：机械验证与视觉验收」，
+  验证打包结果、真实 Plugins 图片加载，**并实际查看渲染图像**；只证明文件存在不算完成。
 
 ## Step 3：Node half——Cordis entry
 
@@ -167,10 +184,9 @@ key = 包名）；live 字段标 `.volatile()`，保存即生效、不重挂载�
 `references/bundle-plugins.md`）：
 
 - **bundle**：`dsh plugin --profile web add <包路径/git 源/npm 包/tarball>`——声明 `dsh.bundle`
-  的包；装完**重启 web**（层栈在 boot 合成；`patchReload` 只覆盖**用户 patch 文件**，不含
-  bundles 层栈）
+  的包；安装后的生效检查见下述引用，不预设必须重启。
 - **纯 cordis**：`dsh plugin --profile web add <包>` 装依赖 + profile
-  `cordis.patch.yml` insert 行——**配置 HMR 实时挂载，零重启**
+  `cordis.patch.yml` insert 行；启用配置热协调时可实时挂载。
 - **四条发布渠道**（官方 [publish 文档](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)）：
   ① 产物入库 + git 源（真一行）② `prepare` 脚本 + 用户为该包放行 `allowBuilds`
   ③ npm 预构建 ④ `pnpm pack` 出的 tarball（`dsh plugin --profile web add ./x-0.1.0.tgz`）。
@@ -232,6 +248,8 @@ npm 包（或 git 源）是分发单元——设置好让用户能找到并安�
 **发布检查清单**（分享仓库前）：
 - [ ] `package.json#main`/`exports` 指向 entry；`dsh.bundle.patch` → `cordis.patch.yml`；
       `dsh.bundle.patch` 的 insert 行与包名同源；**依赖三字段为空**（[gotchas.md](references/gotchas.md) 1）
+- [ ] 已绘制插件图标；顶层 `icon`、打包包含与 manifest 导出正确；真实 Plugins 页图片
+      加载通过，且完成实际视觉检验（Step 2b；机械验证不能替代看图）
 - [ ] 门禁通过（`scripts/gates/run.mjs`）——仓库自带门禁，含自证测试
 - [ ] README 有安装（`dsh plugin --profile web add` 含具体 ref）、使用、能力表
 - [ ] README **只含面向使用者的内容**——工程备忘录（机制/验证证据/踩坑）已移到
@@ -271,7 +289,7 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
 
     一句话：这是什么、解决什么问题
 
-    安装：dsh plugin --profile web add github:<owner>/<repo>（装完重启 web）
+    安装：dsh plugin --profile web add github:<owner>/<repo>（生效条件以目标环境验证为准）
 
     一张截图，或两三行"用起来是什么样"——有 UI 的插件放图，纯 CLI 放示例输出
 

@@ -110,7 +110,7 @@ export function apply(ctx, config) {
 
 ## 安装与验证
 
-见 [install-and-verify.md](install-and-verify.md)（双通道：bundle 层栈重启生效 / 纯 cordis insert 行实时生效）与 [bundle-plugins.md](bundle-plugins.md)。
+见 [install-and-verify.md](install-and-verify.md)（区分安装通道与热更新能力，按改动面验证生效）与 [bundle-plugins.md](bundle-plugins.md)。
 
 ## 开发规范
 

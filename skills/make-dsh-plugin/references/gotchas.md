@@ -61,7 +61,7 @@ bundle（见 whale-girl 仓库决策记录）。
 
 两条语义容易踩：**patch 按行（`id`）覆盖，且替换该行的整个 `config`——不是深合并各键**，所以覆盖别人的行必须重述它需要的每一个键；**bundle 的启停覆盖写 profile 层**，不要写进 bundle 包内层（产品层不该动）。
 
-**`patchReload` 的作用域**：它管的是**用户 patch 文件**的热重载（web profile 模板默认 `live`），**不含** `dsh.profile.bundles` 层栈——装/删 bundle 后层栈仍在 boot 时合成，需重启 web（见 2）。
+**旧结论已撤回（核对安装版 0.2.0-rc.2）**：不能说 `patchReload` 永远不处理 bundle 层栈。`dsh-hmr` 会监视 profile manifest 的 bundles 列表并重新读取、协调配置层。是否生效取决于该功能是否启用；见安装验证文档。
 
 ## 1d. npm 版 dsh 兼容性（2026-08-11 实测，0.0.1-rc.1）
 
@@ -73,12 +73,12 @@ bundle（见 whale-girl 仓库决策记录）。
 - **代理坑**：npm/pnpm 下载走环境代理会超时卡死——装 npm 包用 `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy` 直连（实测 519 包 2 分钟 vs 代理 10 分钟+超时）。
 - **token 展开坑**：pnpm 项目级 `.npmrc` **不展开** `${NPM_TOKEN}`（安全策略，凭据须在用户级 `~/.npmrc` 或 `pnpm config set`）；npm 支持项目级 `${VAR}` 展开。
 
-## 2. 已挂载插件改源码需 web 重启（ESM 缓存）
+## 2. 区分源码缓存与宿主 HMR 能力
 
-`index.mjs`/src 改动后，disable/enable/CLI 重装**都不生效**——ESM 模块缓存按 URL 永久缓存，`mount()` 的 `import(entryUrl)` 无 query bust，同 URL 二次 import 返回旧模块。**只能 web 重启**。
-
-- 例外：进程内**从未 import 过**的插件（禁用态启动后首次面板 enable）首次 import 即新代码，无需重启。
-- 重启后日志须无 `plugin tree failed to load`。
+早期实测曾出现“改源码后仍运行旧模块”的情况；它只证明当时环境未完成代码热更新，
+不能推出所有版本都必须重启。核对安装版 **0.2.0-rc.2**：`dsh-hmr` 有清理模块缓存后重新 import 的路径。
+先检查 HMR 是否启用、源码是否在监听范围、产物是否重建、真实功能是否变化；不具备条件或更新失败时，
+重启是兜底，不是安装说明的固定步骤。配置协调、源码 HMR、客户端 bundle 更新是不同路径。
 
 ## 3. 挂载失败排查顺序
 
