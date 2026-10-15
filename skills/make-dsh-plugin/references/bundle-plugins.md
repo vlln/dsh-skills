@@ -1,6 +1,10 @@
 # Bundle 插件开发详情（dsh.client 包）
 
-0811 官方插件形态之一（repository-plugins 机制已移除）。bundle = 声明 `dsh.bundle.patch` 的 npm 包（带组合层），经 profile 层栈安装；与纯 cordis 插件（insert 行实时挂载）互补。选型见 SKILL.md Step 0 形态表。本文件是 make-dsh-plugin 的自带参考（独立分发不依赖仓库 docs）。
+**来源**：官方 `docs/user/develop/basic/config.md`（插件配置 / 打包 / 安装）、`basic/publish.md`（四条发行渠道）、
+`apps/cli/reference/README.md`（层栈 / profile / CLI 行为）；peer 门槛、git 源语法与其 Windows 坑为**实测**
+（版本标在各条内）。基线 **0.2.0-rc.2**（2026-10-15 核）。复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
+
+两种插件形态之一：bundle = 声明 `dsh.bundle.patch` 的 npm 包（自带一层组合 patch），经 profile 层栈安装；与纯 cordis 插件（装完在 `cordis.patch.yml` 写 insert 行）互补。选型见 SKILL.md Step 0 形态表。本文件是 make-dsh-plugin 的自带参考（独立分发不依赖仓库 docs）。
 
 ## 形态
 

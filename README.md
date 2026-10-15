@@ -10,7 +10,7 @@
 
 | Skill | 作用 |
 |---|---|
-| `make-dsh-plugin` | 开发 dsh 插件：形态选择（skill 包 / MCP / Node 工具 / 浏览器 UI / 组合层）、npm 包与 entry 契约、client bundle、设置页集成、安装与验证纪律、发布与生态纪律 |
+| `make-dsh-plugin` | 开发 dsh 插件：形态选择（bundle / 纯 cordis / 纯 skill 包 / MCP）、npm 包与 entry 契约、client bundle 与插件 UI 风格、设置页集成、安装与验证纪律、交付检查与（可选的）发布规范 |
 | `dsh-session-repair` | 修复在 GUI 中打不开的 dsh 会话历史：检测 seq 重复与回合结构损坏，修复后用 harness 自身的持久化代码验证 |
 
 两个 skill 各自独立——装哪个用哪个，没有相互依赖。

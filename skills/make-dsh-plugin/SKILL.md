@@ -1,12 +1,11 @@
 ---
 name: make-dsh-plugin
 description: >
-  当用户要为 DeepSeek Harness 开发官方 bundle 插件或纯 cordis 插件时使用
-  本 skill。引导形态选择（纯 skill 包 / MCP server / Node 工具 / 浏览器 UI /
-  组合层），然后搭建 npm 包：dsh.bundle + cordis.patch.yml（或纯 Cordis
-  entry + insert 行）、可选 dsh.client、安装验证纪律。也覆盖开发规范
-  （门禁、决策记录、验证纪律）。不是已移除的旧机制（dsh.plugin.json /
-  dsh registry / repository-plugin）。
+  当用户要为 DeepSeek Harness（dsh）开发插件时使用本 skill——工具、服务、
+  事件、命令、prompt、skill 包、MCP server、浏览器 UI。引导形态选择
+  （bundle 组合层 / 纯 cordis / 纯 skill 包 / MCP），搭建 npm 包与 Cordis
+  entry，可选 client half 与官方设置页集成，按纪律安装与验证。也覆盖插件
+  UI 风格、README 与发布规范、门禁与决策记录。
 license: MIT
 metadata:
   author: vlln
@@ -16,18 +15,28 @@ requires:
     - dsh
 ---
 
-# 创建官方 bundle / cordis 插件
+# 创建 dsh 插件
 
-本 skill 构建 **0811 官方形态**的插件：外部插件统一是 npm 包，经 web
-profile 安装——声明 `dsh.bundle` 的走层栈，纯 Cordis 包走
-profile `cordis.patch.yml` insert 行。生效方式取决于宿主的热更新配置，不由包形态单独决定。**没有**
-repository-plugin、`__ModuleLoader__` 之外的旧协议、`dsh registry` CLI——
-旧机制已于 2026-08 移除（0811 起 repository-plugins 机制删除）。
+dsh（DeepSeek Harness）是 agent harness——一个 Cordis 运行时加一套内置能力
+（工具、会话、设置、Web GUI）。**插件就是给它加能力的 npm 包**：注册工具 / 服务 /
+事件 / 命令 / prompt，或者往 Web GUI 里加界面。插件经 **web profile** 安装，
+用户用 `dsh plugin --profile web add <包>` 装卸、在官方 Plugins 页查看与配置。
+
+形态只有两种，**选型只看是否需要"组合层"**（判据表见 Step 0）：
+**bundle**——声明 `dsh.bundle.patch`，自带一层组合 patch（多行 insert/config/disabled
+随包分发）；**纯 cordis**——单个 Cordis 插件包，装完在 profile 的 `cordis.patch.yml`
+里写一行 insert。两者都能带 client half（`dsh.client`）往 Web GUI 加界面。
+**纯 skill 包**（无代码）走文件系统发现根，不属于这两类。
+
+**本 skill 的路线**：Step 0 选形态 → Step 1 仓库布局 → Step 2 manifest → Step 2b 图标 →
+Step 3 Node half → Step 4 client half（可选）→ Step 5 安装与验证 → Step 5b 交付检查与发布
+（发布可选）→ Step 6 README 与开发规范。
 
 **权威契约内嵌在本 skill 的 `references/`**（bundle + entry + skill + MCP 在
 `bundle-plugins.md` 与 `entry-contract.md`、验证在 `install-and-verify.md`、
-规范在 `dev-conventions.md`、坑在 `gotchas.md`）——开发不需要任何仓库文档。
-到达对应阶段时读对应 reference。
+规范在 `dev-conventions.md`、坑在 `gotchas.md`、**UI 风格在 `ui-style.md`**、
+**多语言在 `i18n.md`**）——开发不需要任何仓库文档。到达对应阶段时读对应 reference
+（`ui-style.md` 是查阅型手册，按需查章节，不必通读）。
 
 ## 版本与权威来源
 
@@ -41,7 +50,34 @@ repository-plugin、`__ModuleLoader__` 之外的旧协议、`dsh registry` CLI�
 | 运行时元数据、动态 Cordis | `docs/user/develop/practice/dynamic-cordis.md` |
 | 新增包 / 设置卡 | `docs/cookbook/adding-a-package.md`、`adding-a-settings-card.md` |
 | 层优先级 / flag / profile 机制 | `apps/cli/reference/README.md` |
+| Web UI 样式（token / 圆角 / 控件目录） | `docs/web-styling.md`、`docs/ui-radius.md`、`packages/client/ui-theme/src/styles/*`、`packages/client/ui-primitives/README.md` |
 | 子系统地图 | `docs/subsystems/*.md`（extensions / skills / web-client / tools …） |
+
+### 溯源：一条事实该去哪儿核
+
+**每个 `references/*.md` 开头都写明「来源」**（官方文档路径 / 实测基线 / 本 skill 自定），新增 reference 照此办理；
+读 reference 时先看那一行，就知道该不该信它、以及冲突时去哪儿找权威。
+
+核查次序固定为 **安装的运行时 → 该版本的源码 tag → master**：
+
+1. **安装的运行时**（最权威，本 skill 的口径基准）：官方 client 包随 CLI 一起装，**编译后的组件 CSS 与 token 表都在里面**：
+
+   ```sh
+   D=$(dirname "$(dirname "$(readlink -f "$(command -v dsh)")")")/node_modules/@deepseek-ai
+   grep -o -- '--dsw-radius-[a-z]*: *[^;}]*' "$D/dsh-client-ui-theme/lib/client.js" | sort -u  # token 实际值
+   ls "$D/dsh-client-ui-primitives/lib"/*.module.css                                            # 组件的真实样式
+   ```
+
+   （`readlink -f` 不可用的老系统：换成 `realpath "$(command -v dsh)"`，或直接看
+   `ls -l "$(command -v dsh)"` 的指向手动拼出 `D`。）
+
+   浏览器里还能读**当前生效值**——DevTools 控制台：
+   `getComputedStyle(document.body).getPropertyValue('--dsw-alias-bg-base')`。
+2. **该版本的源码**（props / JSDoc 这类编译产物里没有的东西）：官方 tag `dsh-v<版本>`——
+   `git show dsh-v0.2.0-rc.2:<路径>`（先 `git fetch --tags origin`），或
+   `https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/dsh-v0.2.0-rc.2/<路径>`。
+   版本号先取现场值（`dsh --version`）。
+3. **master**：只在判断"官方接下来往哪走"时看；**不要拿它当插件的行为依据**（[gotchas.md](references/gotchas.md) 9）。
 
 **本 skill 保留两类官方文档不写的内容**：
 
@@ -52,20 +88,17 @@ repository-plugin、`__ModuleLoader__` 之外的旧协议、`dsh registry` CLI�
 会话内容区，外壳的左右拖动**宽度手柄**会跟着出现在你的页签上（`[data-width-handle]`，
 两条 `col-resize` 竖线）——用「给视图挂稳定 data 属性 + `:has([data-…-view]) [data-width-handle]{display:none}`」隐藏它。
 
-**事实带基线**：本 skill 的实测事实标注核实时的 dsh 版本（当前 **0.2.0-rc.2**；带日期的早期条目为 0.1.5-rc.2 / 0.1.2-rc.1）。
+**事实带基线**：本 skill 的实测事实标注核实时的 dsh 版本（当前 **0.2.0-rc.2**）。
 升级基线时逐条重核——服务名、槽名、manifest 字段与安装行为都会变。
 
-**0.1.6–0.2.0 三批换代**（从这三条线之前的版本升上来时，先把 [gotchas.md](references/gotchas.md) 8 读完）：
-设置面从 `settings.plugin.item` / `settingsScope` / `settings.register` 换成 Plugins 页的三个槽 +
-`configForms` + 条目 `Config` 导出（`Config` 要挂在**命名导出**上，`export default` 会把它遮住）；
-`jobs` 的任务终态与 `agent` 的会话启动/销毁事件改了名与 payload；client 侧的**平台模块导出名**
-（图标/控件）也换过，取到 undefined 会在渲染时崩槽（[gotchas.md](references/gotchas.md) 10）。
-旧名字**不报错**——client 侧表现为条目永久 pending，Node 侧表现为静默失效（服务惰性读取）。
-
-**0.1.5 起官方新增的相邻能力**（本 skill 不展开，需要时读官方文档）：bundle 行可自带 CLI
+**相邻能力**（本 skill 不展开，需要时读官方文档）：bundle 行可自带 CLI
 （`inject = ['cmdlineArgs']` + `parseCmdline`，启动器把同一份不可变参数快照交给每个插件）；
 `--from-default-profile <template>` 从随附模板建 profile；**extensions 子系统**（agent 定义带版本的
 Cordis 包并运行其 host 与浏览器两半，`tool-cordis` 查询运行时元数据）；**dynamic Cordis**（运行时写插件）。
+
+**升级既有插件跨 rc 时**：服务名、槽名、manifest 字段与平台模块导出名都会改，且**旧名字不报错**
+（症状是 client 条目永久 pending、Node 侧静默失效）——先读 [gotchas.md](references/gotchas.md) 7、8、10
+的改名清单再动手。
 
 ## 何时使用
 
@@ -82,15 +115,15 @@ Cordis 包并运行其 host 与浏览器两半，`tool-cordis` 查询运行时�
 |---|---|---|---|
 | 纯 skill 包（无代码） | skill 走**文件系统发现根**（`dsh.skills` 字段在当前基线无消费方，见 [entry-contract.md](references/entry-contract.md)） | 复制/链接进发现根（`<项目>/.dsh/skills`、`.agents/skills`、`$DSH_HOME/skills`、`~/.agents/skills`） | Step 2（skills） |
 | MCP server | **不是包 manifest 字段**：CLI 随附 `@deepseek-ai/dsh-mcp-client` 供 **patch 层**使用，默认禁用（每条服务器命令是 agent 沙箱之外的受信任可执行代码） | patch 层 config | `apps/cli/reference/README.md` |
-| Node 工具 / 事件 / 服务 | npm 包 + Cordis entry（`main`） | insert 行（实时） | Step 3 |
+| Node 工具 / 事件 / 服务 | npm 包 + Cordis entry（`main`） | profile insert 行 | Step 3 |
 | Node + 浏览器 UI | npm 包 + Cordis entry + `dsh.client` | bundle | Step 3 + 4 |
 | 带组合层（多行 insert/config/disabled 随包分发） | npm 包 + `dsh.bundle` | bundle 层栈 | 读 `references/bundle-plugins.md` |
 
-**核心判据**（0811 分类）：包是否声明 `dsh.bundle.patch`。声明 = 一层组合
+**核心判据**：包是否声明 `dsh.bundle.patch`。声明 = 一层组合
 patch（多个 insert/config/disabled 行）→ `dsh plugin --profile web add` 进层栈；
-无声明 = 单个 Cordis 插件 → profile `cordis.patch.yml` insert
-行。两者都须按目标运行时的配置协调/HMR能力验证生效，不能一律要求重启。带 UI 的独立插件两类皆可（自渲染 client 在
-bundle 里照常工作）——选型看是否需要组合层，而非 UI 形态。
+无声明 = 单个 Cordis 插件 → profile `cordis.patch.yml` 写一行 insert。
+两者都按目标运行时的配置协调 / HMR 能力**实测生效情况**，不预设必须重启。
+带 UI 的独立插件两类皆可（自渲染 client 在 bundle 里照常工作）——选型看是否需要组合层，而非 UI 形态。
 
 ## Step 1：仓库布局
 
@@ -122,6 +155,9 @@ my-plugin/
   - **用到了却没声明** → apply 开头即抛 `cannot get property without inject`。
   两种都**照不出来于 mock ctx 单测**——必须真启动一次 profile 才算验证过（Step 5）
 - 服务名与槽名以**当前基线**为准逐条核实：官方会跨 rc 改名（[gotchas.md](references/gotchas.md) 7、8）
+- **包显示元数据**（Plugins 页里的标题与一句话描述）：`locale/en.json` + `locale/zh.json` 的
+  `meta.title` / `meta.description`，并把 `"./locale/*.json"` 同时加进 `exports` 与 `files`
+  ——少了 `files` 发布出去就丢（写法与回退链见 [i18n.md](references/i18n.md) §2）
 
 ### Skill 包（`dsh.skills`）与 MCP server（`dsh.mcpServers`）
 
@@ -134,15 +170,15 @@ make-skill）见 `references/entry-contract.md` 对应小节——不要发明�
 每个 npm 插件都要绘制并验证 Plugins 页图标，包括没有 client half 的插件；
 仅走文件系统发现的纯 skill 包不适用。**这是交付要求，不是运行时必填字段**。
 
-- 先查看目标基线的官方实验插件图标，按其简洁风格绘制能表达本插件功能的 SVG。
-  观测样式是 **36×36 透明画布、主体约在 8..28、少量蓝/青渐变**，不是硬 API；
-  不要照搬别的插件身份。用户指定的标记优先，例如 autofork 的 `⑂` 仅是该插件
+- 先看几个**已发布插件的图标**（官方 Plugins 页里的、或你自己别的插件），按其简洁风格绘制
+  能表达本插件功能的 SVG。观测样式是 **36×36 透明画布、主体约在 8..28、少量蓝/青渐变**，
+  不是硬 API；不要照搬别的插件身份。用户指定的标记优先，例如 autofork 的 `⑂` 仅是该插件
   的标记，需画成路径/几何形状，不把它变成所有插件的模板。
 - 使用显式填色/描边；SVG 作为 `<img>` **不继承宿主 `currentColor`**。
   不用字体字形、外链资源或脚本；不要把 README 功能截图当作插件图标。
 - 在 **`package.json` 顶层**写 `"icon": "./icon.svg"`，**不是 `dsh.icon`**；
   `files` 打包白名单包含图标，并保留 `exports["./package.json"] = "./package.json"`。
-- 完成前读 `$_S/references/install-and-verify.md`「插件图标：机械验证与视觉验收」，
+- 完成前读 [install-and-verify.md](references/install-and-verify.md)「插件图标：机械验证与视觉验收」，
   验证打包结果、真实 Plugins 图片加载，**并实际查看渲染图像**；只证明文件存在不算完成。
 
 ## Step 3：Node half——Cordis entry
@@ -162,13 +198,26 @@ bundle 经 `__ModuleLoader__.load({id, factory})` 注册（factory 返回
 `{name, apply}`，由 client 内核挂载时调用 `apply(ctx)`）。自渲染 DOM 逻辑
 放 `apply` 内——**与填官方 hole 正交**（自渲染跑 bundle 照常，参考实现 `vlln/whale-girl`）。
 
-`dsh.client` 的其余现行字段：`inject`（声明消费的其他 client 模块）、**`external`**
+`dsh.client` 的其余字段：`inject`（声明消费的其他 client 模块）、**`external`**
 （声明本行消费的 client 包，client-modules 用它排模块图顺序；**不得声明自己**——同包自引用会抛
 `a row must not declare its own package in dsh.client.external`）。client 包用共享构建形态：
 extends `tsconfig.base.client.json` + 共享 tsdown preset（`packages/client/tsdown.client.ts`）。
 
 构建：esbuild/tsdown CJS 输出 + 外层 `window.__ModuleLoader__.load` 包装（对齐
 官方 preset 的 banner/footer 模式）。
+
+**画 UI 之前先读 `references/ui-style.md`**：官方 `docs/web-styling.md` 与 `docs/ui-radius.md`
+规定了样式归属与圆角标准，那份 reference 把它们翻成插件作者可照抄的形式——三/四层 token、
+配色速查、圆角按角色选档、字体阶梯、阴影与浮层材质、焦点与滚动条，以及**可直接复用的官方控件
+目录（逐组件 props / 几何 / token / 选型判据）**、**`/` 菜单命令行的图标**（含宿主命令没有官方
+入口时的贴面做法与降级契约，§10.7）。两条最常被违反的：插件**不写死颜色、不定义自己的
+深色主题**；**库里有控件就不要抄第二份**（这是硬约定，不是偏好）。
+
+**UI 文案先分流再动手**：浏览器 UI 的文案走**客户端字典**（`ctx.locale.register(ns, { zh, en })` +
+slot 注册项的 `locale` 座位拿 `t`），Plugins 页的插件标题/描述走 `locale/*.json`，
+宿主产生的用户可见文本官方自身留英文（要本地化读 `locale` 设置命名空间的 `preference`）——
+判据表、键的写法（点分小写）、改造清单与验证见 [i18n.md](references/i18n.md)。
+**模型可见文本（tool/schema description）不是 UI 文案**，不要翻译。
 
 **填官方设置面（可选）**：Node half 导出 `Config` schema 声明命名空间（= 条目 id），
 client half 把配置页注册进 Plugins 页的槽（自有 bundle 用 `plugins.bundle.config`，
@@ -208,9 +257,29 @@ web vs 只刷新）与挂载失败排查见 `references/install-and-verify.md`�
 会拖垮整个 profile 启动（[gotchas.md](references/gotchas.md) 6）；本地目录安装只用于开发自测，
 且要先 link SDK。
 
-## Step 5b：发布到 GitHub
+## Step 5b：交付检查与发布
 
-npm 包（或 git 源）是分发单元——设置好让用户能找到并安装。
+### 交付检查清单（做完插件就过一遍，与是否公开发布无关）
+
+- [ ] `package.json#main`/`exports` 指向 entry；`dsh.bundle.patch` → `cordis.patch.yml`；
+      insert 行与包名同源；**依赖三字段为空**（[gotchas.md](references/gotchas.md) 1）
+- [ ] 已绘制插件图标；顶层 `icon`、打包包含与 manifest 导出正确；真实 Plugins 页图片
+      加载通过，且完成实际视觉检验（Step 2b；机械验证不能替代看图）
+- [ ] 带 UI 时过了 [ui-style.md](references/ui-style.md) 的**交付前视觉自检**：浅色/深色各看一次、
+      没有写死颜色、焦点与 disabled 态齐、圆角按角色选档、能复用官方控件的地方没有自绘
+- [ ] 门禁通过（`scripts/gates/run.mjs`）——仓库自带门禁，含自证测试
+- [ ] README 有安装（`dsh plugin --profile web add` 含具体 ref，命令可直接复制）、使用、能力表
+- [ ] README 有 **`## 兼容性`** 节，写清**实测支持的 dsh 版本 + 验证日期**，且与
+      `peerDependencies` 的官方范围同源（规范见 Step 6）
+- [ ] README **只含面向使用者的内容**——工程备忘录（机制/验证证据/踩坑）已移到
+      `AGENTS.local.md`、代码注释或 `docs/engineering-notes.md`，README 只留一句指针
+- [ ] **安装冒烟含一次真实工具/命令调用**（boot 干净 ≠ 功能可用），且做过负控
+      （[install-and-verify.md](references/install-and-verify.md)「三条硬规矩」）
+
+### 公开发布（可选）
+
+**只给自己或团队用、或用 git 源 / 本地目录分享，都不必发布**——下面是决定把插件公开分发
+（GitHub / npm）时才做的动作；不打算公开可以跳过本节，上面的交付检查清单仍然要过。
 
 **仓库 description**——**只写"这是什么、能干什么"，一句话让用户在搜索结果里一眼看懂**：
 
@@ -245,29 +314,18 @@ npm 包（或 git 源）是分发单元——设置好让用户能找到并安�
 用 `gh repo edit <owner>/<repo> --add-topic dsh-plugin --add-topic deepseek-harness
 --add-topic <功能词> ...` 打标签。
 
-**发布检查清单**（分享仓库前）：
-- [ ] `package.json#main`/`exports` 指向 entry；`dsh.bundle.patch` → `cordis.patch.yml`；
-      `dsh.bundle.patch` 的 insert 行与包名同源；**依赖三字段为空**（[gotchas.md](references/gotchas.md) 1）
-- [ ] 已绘制插件图标；顶层 `icon`、打包包含与 manifest 导出正确；真实 Plugins 页图片
-      加载通过，且完成实际视觉检验（Step 2b；机械验证不能替代看图）
-- [ ] 门禁通过（`scripts/gates/run.mjs`）——仓库自带门禁，含自证测试
-- [ ] README 有安装（`dsh plugin --profile web add` 含具体 ref）、使用、能力表
-- [ ] README **只含面向使用者的内容**——工程备忘录（机制/验证证据/踩坑）已移到
-      `AGENTS.local.md`、代码注释或 `docs/engineering-notes.md`，README 只留一句指针
-- [ ] **安装冒烟含一次真实工具/命令调用**（boot 干净 ≠ 功能可用），且做过负控
-      （[install-and-verify.md](references/install-and-verify.md)「三条硬规矩」）
+**公开发布的补充检查**：
 - [ ] 面向用户的安装说明**只给 git 源**（零依赖包的本地目录装有前置条件，见
       [gotchas.md](references/gotchas.md) 6）
 - [ ] 仓库 description = 一句话"是什么 + 能干什么"（**无安装命令样板**）
 - [ ] 仓库 topics 至少含 `dsh-plugin` 与 `deepseek-harness`，另加 1-3 个功能词
-- [ ] **在官方 Discussions 发一条介绍**（见下）——仓库建好不等于有人知道
 
-### 发布后：在官方 Discussions 发一条介绍
+### 让更多人发现（可选）：在官方 Discussions 发一条介绍
 
 官方仓库的 Discussions 有专门的 **`Show Your Plugins!`** 分类（`deepseek-harness`
 的 discussion 列表：<https://github.com/deepseek-ai/deepseek-harness/discussions>）。
-仓库建好只等于"可以被装"，而用户实际是在那里发现插件的——**发一条介绍是发布流程的
-最后一格**，不是可选项。
+用户常在那里发现插件，所以想让更多人知道时可以发一条——**这只是可选的推广动作，
+不影响插件能否被安装**。
 
 **发之前先核实分类还在**（分类名会被维护者改，写死中文名会发错板块）：
 
@@ -336,6 +394,29 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
   细节留在各项自身文件。
 - 自检：README 超过 ~200 行基本已经跑偏，逐段问一遍"这段的读者是谁"。
 
+**`## 兼容性` 节（必含，随每次更新核对）**：用户装之前只有这一节能回答"我这版 dsh 能不能用"。
+写**实测过的 dsh 版本 + 验证日期**，并承认没测过的边界；不写"latest / 要求最新版"这类会立刻过期的断言
+（上游一个月走几千 commit）。取版本号：`dsh --version`，或官方仓库 tag `dsh-v<版本>`。
+
+```
+## 兼容性
+
+| dsh 版本 | 状态 |
+|---|---|
+| `0.2.0-rc.2` | ✅ 已验证（2026-10-15） |
+| 其它版本 | ⚠️ 未验证——升级 dsh 后若 <用户可见症状>，多半是 <一行原因> |
+```
+
+- **与 `peerDependencies` 同源**：声明了官方 peer 范围（见 [bundle-plugins.md](references/bundle-plugins.md)）
+  的插件，README 写的"已验证基线"必须是那个范围的**下限**（例：peer `^0.2.0-rc.2` ⇄ README 写
+  `0.2.0-rc.2`）——两处不一致时用户会照 README 装上却被宿主预检整行禁用。多支持线插件
+  按 [DSH-better-sidebar](https://github.com/vlln/DSH-better-sidebar) 的"按你的 dsh 版本选插件版本"
+  表写（每行：dsh 范围 / 安装命令 / 插件版本）；`workspace:^` 这类"跟随运行时"的 peer 不该配一张版本表。
+- **每次更新插件后同步核对本节**：改了机制挂钩点、client 契约或设置面就重新实测，把新基线
+  与日期写进来（旧版本行保留或改标"未验证"，不要留着假断言）；纯文案/内部重构不动它。
+- 这一节只放**面向用户**的结论（能用/不能用、症状）；验证过程与证据仍归
+  `AGENTS.local.md` / `docs/engineering-notes.md`。
+
 **标题格式**（强制）：
 - `<h1 align="center">插件名</h1>`——**居中**；用仓库/插件名（如
   `whale-girl`、`loop`），**不加 npm 前缀**（不要写 `@vlln/dsh-loop`
@@ -373,16 +454,23 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
 
 ## 坑（Gotchas）
 
-高频坑（官方包未发布、ESM 缓存重启、严格注入、宿主 CSS 覆盖、entry 契约
-失败时机等）见 `references/gotchas.md`（唯一清单家）；**先读它再动手**。
+高频坑（官方包不可单独安装、ESM 缓存、严格注入、宿主 CSS 覆盖、entry 契约
+失败时机等）见 [gotchas.md](references/gotchas.md)（唯一清单）；**先读它再动手**。
 
 ## 参考
 
-- 本 skill 内嵌契约：
-  - `references/bundle-plugins.md` — bundle 插件（dsh.bundle/dsh.client）开发
-  - `references/entry-contract.md` — Cordis entry、dsh 字段（skills/mcpServers）、自渲染 client
-- `references/settings-panel.md` — 官方设置面集成（条目 `Config` + volatile + Plugins 页槽 + 验证）
-  - `references/install-and-verify.md` — 按改动面验证
-  - `references/gotchas.md` — 坑（官方包未发布、严格注入、ESM 缓存、宿主 CSS 覆盖）
-  - `references/dev-conventions.md` — 门禁、决策记录
-- 参考实现（公开仓库）：`vlln/whale-girl`（bundle + `__ModuleLoader__.load` client + 设置页配置卡片的完整例子）、`vlln/dsh-loop`（工具门 + 客户端条目的早期形态）
+本 skill 自带的契约与手册（都在 `references/`）：
+
+- [bundle-plugins.md](references/bundle-plugins.md) — bundle 插件（`dsh.bundle` / `dsh.client`）开发
+- [entry-contract.md](references/entry-contract.md) — Cordis entry、`dsh` 字段（skills / mcpServers）、自渲染 client
+- [settings-panel.md](references/settings-panel.md) — 官方设置面集成（条目 `Config` + volatile + Plugins 页槽 + 验证）
+- [i18n.md](references/i18n.md) — 多语言（客户端字典 / 包显示元数据 `locale/*.json` /
+  宿主侧文案的三条路 / 改造清单与验证）
+- [ui-style.md](references/ui-style.md) — 插件 UI 风格（token 配色 / 圆角 / 字体 / 浮层材质 /
+  焦点与滚动条 / 官方控件选型与逐组件规格 / `/` 菜单命令行图标 / 落位对齐 / 交付前视觉自检）
+- [install-and-verify.md](references/install-and-verify.md) — 安装与按改动面验证
+- [gotchas.md](references/gotchas.md) — 实测坑（唯一清单）
+- [dev-conventions.md](references/dev-conventions.md) — 门禁、决策记录、兼容性标注
+
+参考实现（公开仓库）：`vlln/whale-girl`（bundle + `__ModuleLoader__.load` client + 设置页配置卡片的完整例子）、
+`vlln/dsh-loop`（工具 + client 条目的更小例子）。

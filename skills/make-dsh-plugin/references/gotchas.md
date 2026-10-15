@@ -2,11 +2,14 @@
 
 领域特定事实，违反合理假设——**先读本文再动手**。每条都是插件开发实测踩过并修复的（决策记录可溯）。本文件是 SKILL.md 的深读材料。
 
+**来源**：本 skill 的**实测层**（无官方对应文档）——机制契约以 SKILL.md「版本与权威来源」列的官方文档为准，
+这里保留的是"官方文档没写、只能踩出来"的部分。复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
+
 **事实带基线**：条目内标注核实时的 dsh 版本——无标注的核实于 **0.1.5-rc.2**，标注 0.2.0-rc.2 的为本次重核（见 §8 换代清单）。机制契约以官方文档为准（见 SKILL.md「版本与权威来源」）；升级基线时逐条重核。
 
 ## 1. 官方包在公共 npm 可见，但仍不可单独安装（依赖闭包由挂载环境提供）
 
-`@deepseek-ai/*` 官方包在公共 npm 可见（`latest` = `0.0.1-rc.1`，另有 `next`/`alpha` 与各 rc 线，如 `0.1.2-rc.1`），但**单独安装不成立**：`@deepseek-ai/dsh-tools@0.1.2-rc.1` 自带 9 个 peer（`@deepseek-ai/cordis`、`dsh-agent`、`dsh-code-runtime`、`dsh-invariants`、`dsh-llm`、`dsh-session`、`dsh-scope`、`dsh-system-prompt`、`dsh-user-approval`）——`npm install` 直接 ERESOLVE 失败（`Could not resolve dependency: peer @deepseek-ai/cordis@"^4.0.2" from @deepseek-ai/dsh-agent`）；要装通就得把整条闭包声明进来，等于把插件版本号与官方版本硬耦合，且每次基线升级都要重对齐。
+`@deepseek-ai/*` 官方包在公共 npm 可见（通道版本现场取 `npm view @deepseek-ai/dsh dist-tags`），但**单独安装不成立**：官方包之间是一整条 peer 闭包（实测 `@deepseek-ai/dsh-tools@0.1.2-rc.1` 就带 9 个 peer：`@deepseek-ai/cordis`、`dsh-agent`、`dsh-code-runtime`、`dsh-invariants`、`dsh-llm`、`dsh-session`、`dsh-scope`、`dsh-system-prompt`、`dsh-user-approval`）——`npm install` 直接 ERESOLVE 失败（`Could not resolve dependency: peer @deepseek-ai/cordis@"^4.0.2" from @deepseek-ai/dsh-agent`）；要装通就得把整条闭包声明进来，等于把插件版本号与官方版本硬耦合，且每次基线升级都要重对齐。
 
 **纪律**：`dependencies` / `peerDependencies` / `devDependencies` **三处都留空**是设计——官方包由挂载环境的 pnpm 闭包提供。本地需要它们（跑测试、构建）时用 link 配方，而不是声明：
 
@@ -18,18 +21,17 @@ ln -s "$DSH_AI/dsh-tools" node_modules/@deepseek-ai/dsh-tools
 
 需要 SDK 才能跑的测试要能在它缺席时**优雅跳过**（`test(name, { skip: ... }, fn)`）并写明原因——否则裸 clone 的 `node --test` 直接报解析错，贡献者以为仓库坏了。
 
-- **semver 预发布**：官方版本是 `0.0.1-rc.N` / `0.1.x-rc.N` 形态；声明 `0.0.1`/`^0.0.1` 匹配不到 rc（npm 预发布规则）——真要在 devDeps 里钉，须写 rc 形态（但见上：更该留空）。
+- **semver 预发布**：官方版本带预发布后缀（`-rc.N` / `-alpha.N`）；声明 `0.2.0`/`^0.2.0` 匹配不到 `0.2.0-rc.2`（npm 预发布规则）——真要在 devDeps 里钉，须写全后缀形态（但见上：更该留空）。
 - **正式分发**：走 `github:owner/repo#<ref>` 源，依赖由官方发布环境解析——不需要也不该自己发布或改依赖。
 - **判断**：本地 `npm i` / `npm test` 的依赖失败不是你的错——不要改依赖声明，改验证方式。
 
 **bundle 插件同此纪律**：bundle（`dsh.client` 包，如 loop/task-status）同样 import `@deepseek-ai/dsh-tools`/`dsh-llm`，依赖一律由 profile 的 pnpm 闭包提供（见上）。本地装 bundle 需要 SDK 落在包的解析路径上——profile 内安装天然满足，从 profile 树外安装见坑 6。
 
-### 1a. repository 插件已随 0811 机制移除（历史断点）
+### 1a. 看到 `.dsh-plugin` / `dsh-repository-plugin` 的仓库
 
-repository 插件（`.dsh-plugin` + `dsh-repository-plugin` devDep）的安装断点
-（官方包 404、prepare-cache 桥）**已随 0811 repository-plugins 机制移除而失效**——
-该通道不复存在，勿再使用。原 repository 参考实现 `whale-girl` 已迁移为官方
-bundle（见 whale-girl 仓库决策记录）。
+那是**已删除的旧插件形态**（配套的安装通道与坑一并失效），**不要照做**——按
+[bundle-plugins.md](bundle-plugins.md) 或纯 cordis 形态重写。原 repository 参考实现
+`whale-girl` 已迁移为 bundle（见其仓库决策记录）。
 
 ## 1c. git 源装 bundle：pnpm ≥10 阻止 prepare 脚本（allowBuilds）
 
@@ -63,12 +65,12 @@ bundle（见 whale-girl 仓库决策记录）。
 
 **旧结论已撤回（核对安装版 0.2.0-rc.2）**：不能说 `patchReload` 永远不处理 bundle 层栈。`dsh-hmr` 会监视 profile manifest 的 bundles 列表并重新读取、协调配置层。是否生效取决于该功能是否启用；见安装验证文档。
 
-## 1d. npm 版 dsh 兼容性（2026-08-11 实测，0.0.1-rc.1）
+## 1d. npm 分发的 dsh：几处与源码版观感不同的地方
 
-官方私有 npm 库是未来主流分发（`npx -p @deepseek-ai/dsh@0.0.1-rc.1 dsh web`，lib 生产模式）。实测与源码版（0810 快照）的差异：
+npm 上的 dsh 是 lib 生产模式（`npx -p @deepseek-ai/dsh@<版本> dsh web`）。以下是实测差异（各自标注核实版本）：
 
 - **bundle 生态兼容** ✓：console（`dsh plugin --profile web add` 安装、`/installed` 合并枚举、启停）在 npm 版全功能正常。
-- **0811 起 repository 插件不可用** ❌：repository-plugins 机制删除（`vendor/loader/src/repository.ts` 移除），外部插件统一是 npm 包（bundle / 纯 cordis）。
+- **外部插件统一是 npm 包**（bundle / 纯 cordis）：旧的 repository 形态已不可用（见 1a）。
 - **"路由 200"不可作挂载判据**：npm 版 httpServer 对未匹配路由返回 200 SPA fallback 主页（`__DSH_BOOT__` HTML）；源码版返回 404。验证挂载看响应体（JSON/HTML）而非状态码。
 - **代理坑**：npm/pnpm 下载走环境代理会超时卡死——装 npm 包用 `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy` 直连（实测 519 包 2 分钟 vs 代理 10 分钟+超时）。
 - **token 展开坑**：pnpm 项目级 `.npmrc` **不展开** `${NPM_TOKEN}`（安全策略，凭据须在用户级 `~/.npmrc` 或 `pnpm config set`）；npm 支持项目级 `${VAR}` 展开。
@@ -85,7 +87,7 @@ bundle（见 whale-girl 仓库决策记录）。
 日志 `plugin tree failed to load` 时按序查：
 
 1. `exports["."]`/`main` 指向不存在/无法解析的入口 → 包入口错误
-2. `inject` 未声明 `ctx.get` 用到的服务（`settings`/`httpServer` 等）→ 0811 严格注入抛错
+2. `inject` 未声明 `ctx.get` 用到的服务（`settings`/`httpServer` 等）→ 严格注入抛错
 3. 依赖解析失败（见坑 1）——本地验证环境缺官方包闭包
 4. insert 行 `name:` 未加引号（YAML `@` 开头是保留指示符）→ 解析失败
 
@@ -98,7 +100,7 @@ bundle（见 whale-girl 仓库决策记录）。
 
 ## 5. 其他已实证的环境事实
 
-- **client 经 `__ModuleLoader__.load` 注册**：0811 client-modules 只扫描声明 `dsh.client` 的包，client bundle 必须 `__ModuleLoader__.load({id, factory})`——否则报 `loaded without registering`。
+- **client 经 `__ModuleLoader__.load` 注册**：client-modules 只扫描声明 `dsh.client` 的包，client bundle 必须 `__ModuleLoader__.load({id, factory})`——否则报 `loaded without registering`。
 - **严格注入**：`ctx.get` 未在 `inject` 声明的服务 → `cannot get property without inject`，apply 开头即抛、整个 effect 不注册（路由全 fallback 成 SPA 主页）。
 - **工具 schema DSL 违规在挂载时暴露**：CLI enable 只校验名称，`defineTool` value-schema 违规在 web boot/面板 enable（reconcile）时暴露——发现后重启 web 确认日志。
 
@@ -267,3 +269,24 @@ durable 子会话地址）。要在插件里把用户切到另一条会话，inj
 **别顺手把 composer 也藏了**：输入框座（`[data-composer-seat]` / `data-conversation-region=composer`）
 同样是共享的，但它在任何页签上都有意义（可以边看家族树边发消息）。只有那些**明确只服务
 「对话」页签**的外来件才该隐藏。
+
+## 13. `/` 菜单里的命令图标：宿主命令没有注册入口（0.2.0-rc.2 实测）
+
+**现象**：自己用 `ctx.commands.register({ name: 'x', … })` 注册的宿主命令，在 `/` 菜单里只有
+`x` + 一句 description，**没有图标**；官方 `/goal`、`/compact` 那些都有。
+
+**机制**：行外观（label / description / icon）**不在宿主侧**——`CommandDescriptor` 只有
+`{ definitionId?, name, description, input? }`；图标出自客户端 `dsh-client-ui-commands` 的
+`presentation.ts` 里一张**硬编码的一等公民表** `HOST_FACES`（goal / plan / feedback / compact /
+permission / export），按 `definitionId` 命中。第三方宿主命令命中不了。
+
+**三条别去试错的路**：同名注册客户端贡献 → 候选合成阶段抛
+`ui-commands: contribution /x collides with a host command`，**整组「指令」一起消失**；
+`ctx.commandUi.decorate` → 只换裸调用行为、契约里没有 `icon`；给描述符塞 `icon` → 宿主侧根本没这字段。
+
+**两条可行路**：① 接受官方回退外观（name + description，无图标）；② 想要图标就把命令做成
+**客户端自有贡献**（`ctx.commandUi.register({ …, icon })`，代价是失去带参形式与宿主生命周期记账），
+或在 `commandUi.candidates` 出口**只贴自己那一行**（只改展示字段、上游改名时静默降级，
+`vlln/dsh-loop` 的 `installCommandRowFace` 即此做法）。
+
+**完整配方、代码骨架与验证清单见 [ui-style.md](ui-style.md) §10.7。**

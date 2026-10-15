@@ -1,5 +1,10 @@
 # 官方设置面集成（条目 Config + Plugins 页卡片）
 
+**来源**：官方 client 包源码——`dsh-client-ui-settings-plugins`（`settings.plugins.tab` 槽声明）、
+`dsh-client-ui-plugin-manager`（`plugins.*` 槽）、`dsh-client-ui-primitives/settings-form/*`（控件与暂存模型）——
+与官方 `docs/subsystems/slots.md`；其余为**实测**（基线 **0.2.0-rc.2**，参考实现 `vlln/whale-girl`）。
+复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
+
 第三方插件把自己参数的配置页挂进**侧边栏 Plugins 页**的方法——注意**不是**「设置 → 插件」：
 那里现在是**只读的插件清单**（`dsh-client-ui-settings-plugin-inventory` 的 Plugin list tab，
 外壳是 `dsh-client-ui-settings-plugins` 的 `settings.plugins.tab` 槽，不提供配置写入）。

@@ -1,10 +1,14 @@
 # Entry 契约详情（Cordis entry + skill + MCP）
 
+**来源**：官方 `docs/user/develop/framework/*`（服务与事件契约）、`docs/cookbook/adding-a-package.md`、
+`packages/mcp/mcp-client/README.md`（MCP 字段）；`dsh.skills` 无消费方、命名导出被 `unwrapExports` 遮蔽这类
+**实测**结论标在各条内。基线 **0.2.0-rc.2**（2026-10-15 核）。复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
+
 本文件是 make-dsh-plugin 的**自带权威契约**（skill 独立分发，不依赖仓库文档）。bundle 形态完整契约见 [bundle-plugins.md](bundle-plugins.md)；本文件聚焦 Node half（Cordis entry）与 skill/MCP 声明。
 
 ## 仓库布局
 
-插件是 npm 包，**包根 = 仓库根**（bundle 形态，0811 起无 `.dsh-plugin` 子目录要求）：
+插件是 npm 包，**包根 = 仓库根**（无需 `.dsh-plugin` 之类的子目录）：
 
 ```
 my-plugin/
@@ -39,10 +43,10 @@ my-plugin/
 ```
 
 - **`dsh.bundle.patch`**：指向 `cordis.patch.yml`（组合层，含 `- insert: - id: <自身> name: <包名>`）——声明即 bundle，进 profile 层栈
-- **`dsh.client`**：`platform: web`——client-modules 只扫描声明它的包（0811 起无声明不进 `__DSH_BOOT__`）。其余现行字段：`inject`（消费的其他 client 模块）、`external`（本行消费的 client 包，用于排模块图顺序；**不得声明自己**）。client 包 extends `tsconfig.base.client.json` 并用共享 tsdown preset（`packages/client/tsdown.client.ts`）
+- **`dsh.client`**：`platform: web`——client-modules 只扫描声明它的包（无声明不进 `__DSH_BOOT__`）。其余字段：`inject`（消费的其他 client 模块）、`external`（本行消费的 client 包，用于排模块图顺序；**不得声明自己**）。client 包 extends `tsconfig.base.client.json` 并用共享 tsdown preset（`packages/client/tsdown.client.ts`）
 - **`exports["./client"]`**：client bundle 路径（`__ModuleLoader__.load` 注册的构建产物）
 - **`main`/`exports["."]`**：指向 Cordis entry（`name`/`inject`/`apply`）
-- **`inject` 声明 `ctx.get` 用到的全部服务**（`settings`/`httpServer` 等）——0811 cordis 严格注入，未声明即抛错
+- **`inject` 声明 `ctx.get` 用到的全部服务**（`settings`/`httpServer` 等）——cordis 严格注入，未声明即抛错
 - 纯 cordis 插件（无 `dsh.bundle`）可省 `cordis.patch.yml`——经 profile insert 行挂载
 
 ### dsh.skills（skill 包）

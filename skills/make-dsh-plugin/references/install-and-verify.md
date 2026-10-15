@@ -1,6 +1,10 @@
 # 安装与验证详情
 
-0811 起外部插件统一经 web profile 安装，两条通道（本文件是 SKILL.md 的深读材料，开发安装面时读取）。
+**来源**：本 skill 的**验证纪律**（负控、按改动面取最窄证据）＋ 对官方 `apps/cli/reference/README.md`
+（安装 / 层栈行为）与 `dsh-hmr` / `dsh-plugin-manager` / `cordis-plugin-loader` 的实测核查；
+"哪个版本会怎样"是实测记录，不是跨版本承诺。复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
+
+外部插件统一经 web profile 安装，两条通道（本文件是 SKILL.md 的深读材料，开发安装面时读取）。
 
 ## Bundle 插件安装
 
