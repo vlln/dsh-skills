@@ -117,6 +117,51 @@ export function apply(ctx, config) {
 
 构建：esbuild CJS 输出 + 外层 `window.__ModuleLoader__.load` 包装（对齐官方 client bundle 产物的包装形态）。
 
+## 持久化：插件状态放哪
+
+**两条路，先选再写**（0.2.1-rc.1 实测）：
+
+**A. 官方 `ctx.storageDomain`（schema 校验、变更事件、host-only）**
+
+web 组合默认已挂 `storage` / `storage-json` / `storage-domain` 三行，json 后端的根是
+`$DSH_HOME/storages`（`--dump-config` 里可见 `root: dshHomePath('storages')`）。
+
+```js
+import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
+export const ledger = defineDomain({
+  name: 'my-plugin-ledger',      // 全局命名空间：加插件前缀，别用通用词
+  version: 1,
+  tables: { scans: domainTable(scanSchema) },   // 记录 schema 用 @deepseek-ai/schemastery 的 z
+})
+export const inject = ['storageDomain']
+export function apply(ctx) {
+  ctx.effect(() => {
+    const handle = ctx.storageDomain.open(ledger)   // 异步；句柄归调用方
+    handle.table('scans').put(id, record)            // 读同步、写 durable 后返回
+    return () => handle.close()
+  }, 'my-plugin: ledger')
+}
+```
+
+- **不是按插件自动隔离**：domain 名是全局的，插件要自己加前缀；同名会撞。
+- 记录在 open 时按 schema 校验；版本不匹配直接 `version-mismatch`（无迁移）。
+- 只给宿主代码用（模型不可见）；没有 storage 行的组合要先补行。
+
+**B. 每插件数据目录（单文件状态最省事）**
+
+`process.env.DSH_HOME` 下的 `data/<插件 id>/`，例如
+`$DSH_HOME/data/dsh-disk-canvas/ledger.json`。写盘用同目录 `.tmp` + `rename` 原子替换，
+按体积/条数设上限，`ctx.effect` 的 disposer 里做末次落盘。参考实现 `vlln/whale-girl`
+（`$DSH_HOME/data/whale-girl/state.json`）。
+
+- 这个目录**不是 API 保证的隔离**，只是社区/官方示例都在用的约定：按插件 id 命名即互不覆盖。
+- **不要**写进插件安装目录或 profile：更新/卸载会把状态一起带走；profile 里的
+  `lib/` 与 `node_modules/` 也不是数据区。
+- 卸载不会自动删 `data/<id>/`——要么接受残留，要么在 README 写明清理方式。
+
+**判据**：多条记录、需要 schema 校验或变更订阅 → A；一份文档、几十 KB、自己管版本 → B。
+只存用户偏好这类小值，优先走条目 `Config`（设置面），不要另起存储。
+
 ## 安装与验证
 
 见 [10-install-and-verify.md](10-install-and-verify.md)（区分安装通道与热更新能力，按改动面验证生效）与 [05-bundle-plugins.md](05-bundle-plugins.md)。
