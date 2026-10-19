@@ -225,12 +225,14 @@ slot entry crashed in '<slot 名>' + Minified React error #130
 
 **两个坑**：不要写 `:has(> [data-myplug-view])`（视图是共享区域的孙节点，`>` 匹配不上）；不要锚官方 CSS module 的哈希类名（`wSkVaW_widthHandle`）——`[data-width-handle]` 才是稳定属性，官方自己也用 `:has()` 隐藏它。**别顺手藏 composer**（输入框座在任何页签都有意义）。
 
-## 13. `/` 菜单命令图标：宿主命令没有注册入口（0.2.0-rc.2）
+## 13. `/` 菜单命令行外观：宿主命令没有注册入口（0.2.0-rc.2 / 0.2.1）
 
-**现象**：`ctx.commands.register(...)` 的宿主命令在 `/` 菜单里只有名字 + description，没有图标；官方 `/goal`、`/compact` 都有。
+**现象**：`ctx.commands.register(...)` 的宿主命令在 `/` 菜单里只有裸命令名 + description；没有图标，也没有本地化标题（中文用户输入「循环」搜不到 `/loop`）。官方 `/goal`、`/compact` 都有图标 + 本地化标题（中文界面下还会显示灰色 name 别名）。
 
-**机制**：行外观不在宿主侧——`CommandDescriptor` 只有 `{ definitionId?, name, description, input? }`；图标出自客户端 `dsh-client-ui-commands` 的 `presentation.ts` 里一张硬编码表 `HOST_FACES`（goal / plan / feedback / compact / permission / export），按 `definitionId` 命中。第三方宿主命令命中不了。
+**机制**：行外观不在宿主侧——`CommandDescriptor` 只有 `{ definitionId?, name, description, input? }`；`label` / `icon` 出自客户端 `dsh-client-ui-commands`。内置行从 `presentation.ts` 的硬编码表 `HOST_FACES`（goal / plan / feedback / compact / permission / export）按 `definitionId` 命中；第三方宿主命令命中不了。`label` 缺失时菜单按 `label ?? name` 显示裸名；label 是候选层的第二个搜索键（输出贴面见下）。
 
-**三条别试**：同名注册客户端贡献 → `contribution /x collides with a host command`，**整组「指令」一起消失**；`ctx.commandUi.decorate` → 契约里没有 `icon`；给描述符塞 `icon` → 宿主侧没这字段。
+**三条别试**：同名注册客户端贡献 → `contribution /x collides with a host command`，**整组「指令」一起消失**；`ctx.commandUi.decorate` → 契约里没有 `label` / `icon`；给描述符塞 `label` / `icon` → 宿主侧没这些字段。
 
-**两条可行路**：① 接受官方回退外观（无图标）；② 要图标就把命令做成**客户端自有贡献**（`ctx.commandUi.register({ …, icon })`，失去带参形式与宿主生命周期记账），或在 `commandUi.candidates` 出口**只贴自己那一行**——注意 `candidates` 在 0.2.1 的类型里是 **private**，这是登记在案的越界，必须按 [06-ui-style.md](06-ui-style.md) §10.7 的自降级包装写法（服务缺席/改名时静默回落），参考 `vlln/dsh-loop` 的 `installCommandRowFace`。
+**两条可行路**：① 接受官方回退外观（裸 name + description，无图标、无本地化标题）；② 要行外观就把命令做成**客户端自有贡献**（`ctx.commandUi.register({ …, label, icon })`，失去带参形式与宿主生命周期记账），或在 `commandUi.candidates` 出口**只贴自己那一行**的 `label` + `icon`——注意 `candidates` 在 0.2.1 的类型里是 **private**，这是登记在案的越界，必须按 [06-ui-style.md](06-ui-style.md) §10.7 的自降级包装写法（服务缺席/改名时静默回落），参考 `vlln/dsh-loop` 的 `installCommandRowFace`。**只贴 icon 不贴 label** 是常见漏项：行标题仍是裸命令名。
+
+**贴面只修显示，不修搜索**：`rankByName` 在 `candidates` 内部、贴面之前运行；贴出来的 `label` 不参与查询，`/循环` 这类只命中 label 的查询仍为空。要让本地化标题可搜，只能用客户端自有贡献/源。

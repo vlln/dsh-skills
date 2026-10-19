@@ -260,8 +260,8 @@ extends `tsconfig.base.client.json` + 共享 tsdown preset（`packages/client/ts
 **画 UI 之前先读 `references/06-ui-style.md`**：官方 `docs/web-styling.md` 与 `docs/ui-radius.md`
 规定了样式归属与圆角标准，那份 reference 把它们翻成插件作者可照抄的形式——三/四层 token、
 配色速查、圆角按角色选档、字体阶梯、阴影与浮层材质、焦点与滚动条，以及**可直接复用的官方控件
-目录（逐组件 props / 几何 / token / 选型判据）**、**`/` 菜单命令行的图标**（含宿主命令没有官方
-入口时的贴面做法与降级契约，§10.7）。两条最常被违反的：插件**不写死颜色、不定义自己的
+目录（逐组件 props / 几何 / token / 选型判据）**、**`/` 菜单命令行的行外观（label / icon）**（含宿主命令没有官方
+入口时的贴面做法、label 的搜索键作用与降级契约，§10.7）。两条最常被违反的：插件**不写死颜色、不定义自己的
 深色主题**；**库里有控件就不要抄第二份**（这是硬约定，不是偏好）。
 
 **UI 文案先分流再动手**：浏览器 UI 的文案走**客户端字典**（`ctx.locale.register(ns, { zh, en })` +

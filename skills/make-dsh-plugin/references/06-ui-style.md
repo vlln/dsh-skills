@@ -13,8 +13,8 @@ Desktop 与 web 是**同一个 Web 客户端**（差异与调试见 [14-desktop.
 scrollbar / gradient-shadow-text）、`packages/client/ui-primitives/README.md`（组件目录与选型判据）
 与同包 `src/*.tsx` + `*.module.css`（逐组件的 props 与几何）、`docs/subsystems/slots.md` 与
 `packages/client/{ui-layout,ui-sidebar,ui-settings-plugins}` 的 README 与 `src/client/*.module.css`
-（落位与外壳几何）、`packages/client/{ui-commands,ui-input-trigger}` 的源码（§10.7 命令行行外观与
-`/` 菜单渲染）；另引用本 skill 的 [13-gotchas.md](13-gotchas.md)（实测坑）与
+（落位与外壳几何）、`packages/client/{ui-commands,ui-input-trigger}` 的源码（§10.7 命令行行外观
+label / icon 与 `/` 菜单渲染）；另引用本 skill 的 [13-gotchas.md](13-gotchas.md)（实测坑）与
 [07-settings-panel.md](07-settings-panel.md)（槽位注册写法）。
 基线 **0.2.0-rc.2**（tag `dsh-v0.2.0-rc.2`，2026-10-15 逐条核）。**0.2.1-rc.1 复核**：token 名称与 §2.2 的解析值（bg / label / border / hover / menu）、§3 的圆角数值（4/8/12/16/20/28）与组件名（Button / SettingsForm / SettingsValueField / SegmentedControl / SegmentedTabs / Switch / Modal / Tooltip / Menu / Tag / Pill）一致；组件几何与逐条 props 仍按 0.2.0 标注。
 
@@ -682,7 +682,7 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
 ## 10. 常见插件形态的配方
 
 > 来源：`docs/ui-radius.md`「Settings card materials」＋ [07-settings-panel.md](07-settings-panel.md)（槽位与写入语义）
-> ＋ 本文件 §8（控件）＋ 官方 `ui-commands` / `ui-input-trigger` 源码（§10.7 的命令行图标）
+> ＋ 本文件 §8（控件）＋ 官方 `ui-commands` / `ui-input-trigger` 源码（§10.7 的命令行行外观 label / icon）
 > ＋ 实测参考实现 `vlln/whale-girl` 的决策记录（自绘控件的返工教训）。
 
 ### 10.1 设置页卡片（插件配置面）
@@ -744,25 +744,35 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
 - 要在卡片上加重试/导出之类的东西，**包在卡片外层**（或在官方给出的 `labels`/`toolbarLabels` 里加），
   不要去改卡片内部结构或覆盖它的 `--dsl-*` 几何变量之外的样式。
 
-### 10.7 给命令（`/` 菜单）加图标
+### 10.7 给命令（`/` 菜单）加图标与本地化标题
 
-在输入框敲 `/` 弹出的菜单里，每行左侧的图标**不是宿主给的**——宿主命令描述符
-（`CommandDescriptor`）里根本没有图标字段。图标只走客户端命令面
-（`@deepseek-ai/dsh-client-ui-commands` 的服务 `ctx.commandUi`），按命令的**来源**分两种情况：
+`/` 菜单一行能显示的字段不止图标。先认清谁给什么——**宿主命令描述符只有
+`description`（和 `input.hint`），`label` / `icon` 都在客户端**：
 
-| 你的命令是 | 能否加图标 | 做法 |
+| 字段 | 谁给 | 说明 |
 |---|---|---|
-| **客户端自有命令**（`ctx.commandUi.register`） | ✅ 官方支持 | 贡献里带 `icon`（见 A） |
+| `name` | 命令名 | 标题兜底；`label` 与 name 不同（忽略大小写）时，菜单在标题后显示灰色 name 别名 |
+| `label` | 客户端 | 行标题；缺失时菜单按 `label ?? name` 回退成裸命令名。它也是 `/` 菜单的第二个搜索键，但**前提是候选在搜索前就带 label**；宿主命令的输出贴面做不到（见 B） |
+| `description` | 宿主 descriptor / 客户端贡献 | 副标题。宿主命令的描述由 Node half 提供；若插件已做语言回传（§08-i18n），通常不必在客户端再抄一份 |
+| `icon` | 客户端 | 14px；给 `@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 组件 |
+| `hint` | 宿主 `input.hint` | **claim 态的 ghost text，不在菜单行渲染**；别把它当菜单说明 |
+| `section` | `sectionRows` | 宿主行由 ui-commands 统一加「指令」；自己写会被覆盖 |
+
+按命令的**来源**分两种情况：
+
+| 你的命令是 | 能否加 label/icon | 做法 |
+|---|---|---|
+| **客户端自有命令**（`ctx.commandUi.register`） | ✅ 官方支持 | 贡献里带 `label` / `description` / `icon`（见 A） |
 | **宿主命令**（`ctx.commands.register`，有带参形式与生命周期记账） | ❌ 没有官方入口 | 见 B 的两条路 |
 
-**A. 客户端自有命令（首选）**——行为全在浏览器里时，直接注册带 `icon` 的贡献：
+**A. 客户端自有命令（首选）**——行为全在浏览器里时，直接注册带 `label`/`icon` 的贡献。`t` 用 `ctx.locale.bind(NS)`，`label()` / `description()` 每次候选合成都会重新调用：
 
 ```ts
 ctx.inject(['commandUi'], (scope) => {
   scope.effect(() => scope.get('commandUi').register({
     name: 'mycmd',
-    label: () => t('label'),                       // 每次候选合成现取，切语言即生效
-    description: () => t('description'),
+    label: () => t('cmd.label'),                   // 每次候选合成现取，切语言即生效
+    description: () => t('cmd.description'),
     icon: IconRefreshOutlineRegular,               // ui-primitives 的图标组件
     available: session => true,
     ui: { kind: 'action', run: (session) => { /* … */ } },
@@ -775,35 +785,46 @@ ctx.inject(['commandUi'], (scope) => {
   `ui-commands: contribution /x collides with a host command`，**整组「指令」一起消失**（不是只丢这一行）。
 - 参考实现：官方 `ui-model-selection` 的 `/model`（`popupSelect` + `IconDataOutlineRegular`）。
 
-**B. 宿主命令：0.2.0-rc.2 没有官方图标入口**——先认清三条事实，别去试错：
+**带参命令的三种处理**：
+
+- **宿主命令**：`input: { hint }` 只给 composer claim 态的 ghost text；参数由 `handler(invocation.rawInput)` 解析，菜单行不显示用法（要展示就写进 `description`）。
+- **客户端贡献**（`commandUi.register`）：只处理**裸调用**；`/mycmd 5m ...` 这种带参行会落回默认 sink，除非另注册 source。
+- **客户端源**（`inputTriggers.registerSource`）：在 `matchEnter` 里自己解析整行；返回 `'handled'` 时还要自己消费 token（`slash/input-consume-token`）。`onPick` 可返回 `{ text: '/mycmd ' }` 让用户接着输入，或用 `matchClaim` 恢复历史 chip。参考 `dsh-context` 的 `/context`。
+
+**B. 宿主命令：0.2.0-rc.2 / 0.2.1 没有官方行外观入口**——先认清三条事实，别去试错：
 
 - 行外观是 `ui-commands` 里一张**硬编码的一等公民表**（`HOST_FACES`：goal / plan / feedback /
   compact / permission / export），按 `definitionId` 命中；第三方命令命中不了。
 - 同名客户端贡献 → 上面那条 fail loud；`decorate` 也不行，它只替换**裸调用**的行为
-  （带参的命令行仍走宿主处理器），且契约里**没有 `icon`**。
+  （带参的命令行仍走宿主处理器），且契约里**没有 `label` / `icon`**。
 
 于是只剩两条路：
 
-1. **接受官方回退外观**（行上只有 name + 宿主 description，无图标）——零风险。
+1. **接受官方回退外观**（行上只有 name + 宿主 description，无图标、无本地化标题）——零风险。
 2. **贴面**：在候选合成出口 `commandUi.candidates(session, req)` 上包一层，**只重写自己那一行**的
-   `label` / `description` / `icon`；前提不成立（服务缺席、上游改名、导出非函数）就静默降级：
+   `label` / `icon`（`description` 通常已由宿主给；要改也可以，但别把同一句话维护两份）；
+   前提不成立（服务缺席、上游改名、导出非函数）就静默降级：
 
 ```ts
-interface Row { readonly name?: string; readonly icon?: unknown }
+interface Row { readonly name?: string; readonly label?: string; readonly icon?: unknown }
+type RowLabel = (key: 'cmd.label') => string
 
-function installRowFace(commandUi: unknown): () => void {
+function installRowFace(commandUi: unknown, t: RowLabel): () => void {
   const runtime = commandUi as { candidates?: (s: unknown, r: unknown) => Promise<readonly Row[]> }
   const original = runtime?.candidates
   if (runtime === undefined || typeof original !== 'function') return () => {}
   const face = async (s: unknown, r: unknown): Promise<readonly Row[]> =>
     (await original.call(runtime, s, r))
-      .map(row => (row?.name === 'mycmd' ? { ...row, icon: IconRefreshOutlineRegular } : row))
+      .map(row => (row?.name === 'mycmd'
+        ? { ...row, label: t('cmd.label'), icon: IconRefreshOutlineRegular }
+        : row))
   runtime.candidates = face
   return () => { if (runtime.candidates === face) runtime.candidates = original }
 }
 
+const t = ctx.locale.bind(NS) // NS = 你的 locale 命名空间；调用时读当前 active，切语言后下一次候选合成即生效
 ctx.inject(['commandUi'], (scope) => {
-  scope.effect(() => installRowFace(scope.get('commandUi')), 'my-plugin: command row face')
+  scope.effect(() => installRowFace(scope.get('commandUi'), t), 'my-plugin: command row face')
 })
 ```
 
@@ -812,10 +833,14 @@ ctx.inject(['commandUi'], (scope) => {
    只改自己那一行的展示字段；`ctx.inject` 让没有命令目录的 composition 里这段代码**永不执行**；
    上游改名后包装不生效，该行自动回落成官方外观，**功能不受影响**。
    参考实现：`vlln/dsh-loop` 的 `installCommandRowFace`（宿主命令 `/loop` 保留带参形式与生命周期，
-   只贴一行图标），以及同做法的社区插件 `falling-ts/dsh-force-compact`。
+   只贴一行的本地化标题与图标），以及同做法的社区插件 `falling-ts/dsh-force-compact`。
 
-**验证（两条路都要过）**：`/` 菜单里那一行出现图标；官方行（`/goal`、`/compact`…）与其他插件的行
-一字未变；切界面语言后文案跟着变；没有 `commandUi` 的 composition（或上游改名）时不报错、只是没图标。
+**贴面只能修显示，不能修搜索**：`rankByName` 在 `candidates` 内部、贴面之前运行；输出贴面加上的 `label` 不参与这次查询。空查询或命中 name 的查询会显示 label；`/循环` 这类只命中 label 的查询仍为空。要让本地化标题可搜，只能用客户端自有贡献/源。
+
+**验证（两条路都要过）**：`/` 菜单里那一行出现图标 + 本地化标题；标题与 name 不同时出现灰色别名；
+切界面语言后标题跟着变；官方行（`/goal`、`/compact`…）与其他插件的行一字未变；没有 `commandUi` 的
+composition（或上游改名）时不报错、只是回落到 name + description。**客户端自有命令/源**再验「用本地化
+标题能搜到」；**宿主命令的输出贴面只修显示**，`/循环` 仍不命中（搜索在贴面之前）。
 
 ## 11. 交付前视觉自检
 
