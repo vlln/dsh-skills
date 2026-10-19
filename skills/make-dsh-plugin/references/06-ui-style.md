@@ -1,5 +1,9 @@
 # 插件 UI 风格（dsh Web 客户端）
 
+> **本文件回答**：插件 UI 的 token / 控件 / 落位 / 交付自检（查阅型：按节查，不必通读）。**不回答**：设置页接线（→ 07）、UI 文案翻译（→ 08）。
+
+Desktop 与 web 是**同一个 Web 客户端**（差异与调试见 [14-desktop.md](14-desktop.md)）。
+
 给第三方插件作者：**把 UI 做进官方体系**——配色、圆角、字体、层级、控件选型与落位，
 逐项给数值和判据。
 
@@ -10,9 +14,9 @@ scrollbar / gradient-shadow-text）、`packages/client/ui-primitives/README.md`�
 与同包 `src/*.tsx` + `*.module.css`（逐组件的 props 与几何）、`docs/subsystems/slots.md` 与
 `packages/client/{ui-layout,ui-sidebar,ui-settings-plugins}` 的 README 与 `src/client/*.module.css`
 （落位与外壳几何）、`packages/client/{ui-commands,ui-input-trigger}` 的源码（§10.7 命令行行外观与
-`/` 菜单渲染）；另引用本 skill 的 [gotchas.md](gotchas.md)（实测坑）与
-[settings-panel.md](settings-panel.md)（槽位注册写法）。
-基线 **0.2.0-rc.2**（tag `dsh-v0.2.0-rc.2`，2026-10-15 逐条核）。
+`/` 菜单渲染）；另引用本 skill 的 [13-gotchas.md](13-gotchas.md)（实测坑）与
+[07-settings-panel.md](07-settings-panel.md)（槽位注册写法）。
+基线 **0.2.0-rc.2**（tag `dsh-v0.2.0-rc.2`，2026-10-15 逐条核）。**0.2.1-rc.1 复核**：token 名称与 §2.2 的解析值（bg / label / border / hover / menu）、§3 的圆角数值（4/8/12/16/20/28）与组件名（Button / SettingsForm / SettingsValueField / SegmentedControl / SegmentedTabs / Switch / Modal / Tooltip / Menu / Tag / Pill）一致；组件几何与逐条 props 仍按 0.2.0 标注。
 
 - 官方那两份文档是写给 client 包维护者的规范，**本文件是插件作者的落地版**；冲突时以官方与
   **安装的运行时**为准（复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节——已装的官方包里就有
@@ -37,7 +41,7 @@ scrollbar / gradient-shadow-text）、`packages/client/ui-primitives/README.md`�
 ## 1. 怎么把官方控件引进来
 
 > 来源：`ui-primitives/README.md`（Use this package / Component catalog）；本 skill 的
-> [entry-contract.md](entry-contract.md)（`dsh.client` 字段）与 [gotchas.md](gotchas.md) 10（平台种子模块的导出名会随 rc 改）；
+> [04-plugin-contract.md](04-plugin-contract.md)（`dsh.client` 字段）与 [13-gotchas.md](13-gotchas.md) 10（平台种子模块的导出名会随 rc 改）；
 > 构建形态取自实测参考实现 `vlln/whale-girl` 的 `scripts/build-client.mjs`。
 
 包名 **`@deepseek-ai/dsh-client-ui-primitives`**，**没有子路径**——图标与控件同一条 import 路径
@@ -56,7 +60,7 @@ client bundle 沿用共享构建形态（与 `vlln/whale-girl` 同款）：
 
 ⚠️ 平台种子模块表是 rc 相关的内部契约，**导出名会随 rc 改名**：`require()` 取到 `undefined`
 不在导入时报错，要渲染时才炸（槽静默失效 + Minified React error #130）。落笔前先在**应用 bundle**
-里核实名字存在，升级基线时把这些名字当回归点（见 gotchas.md 10）。
+里核实名字存在，升级基线时把这些名字当回归点（见 13-gotchas.md 10）。
 
 控件是**零 Cordis 的纯 props-in React**：没有 `ctx.locale` 兜底，所有面向用户的文案
 （`label`、`*Label`、`labels` 对象）都必须由你提供。
@@ -234,15 +238,15 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
 
 ## 7. 自渲染 DOM 的落地纪律
 
-> 来源：本 skill 的实测层——[gotchas.md](gotchas.md) 4（宿主覆盖注入样式）与 12（宽度手柄）；
+> 来源：本 skill 的实测层——[13-gotchas.md](13-gotchas.md) 4（宿主覆盖注入样式）与 12（宽度手柄）；
 > 图标命名/权重取自 `ui-primitives/README.md` 与 `src/icons/*`；插件图标见 [SKILL.md](../SKILL.md) Step 2b。
 
-- **宿主可能清掉/覆盖注入的 `<style>`**（gotchas.md 4）：插件 UI 的**关键**样式用 JS 内联
+- **宿主可能清掉/覆盖注入的 `<style>`**（13-gotchas.md 4）：插件 UI 的**关键**样式用 JS 内联
   （内联优先级最高），别把成败押在 class 注入上。结构性样式可以走 CSS Modules。
 - **不要锚官方 CSS Module 的哈希类名**（`wSkVaW_widthHandle` 这类，换版本就变）；
   给自绘视图挂**稳定的 `data-*` 属性**，用属性选择器定位与隐藏（例：新增 `conversation.view`
   页签会继承外壳的拖动宽度手柄 `[data-width-handle]`，用
-  `:has([data-my-view]) [data-width-handle]{display:none}` 关掉，见 gotchas.md 12）。
+  `:has([data-my-view]) [data-width-handle]{display:none}` 关掉，见 13-gotchas.md 12）。
 - 图标：`Icon<名称><Outline|Fill>?<Regular|Medium>`，`Regular` = 1px 描边、`Medium` = 1.3px 同几何，
   `size` prop 控制渲染尺寸（各字形自持默认值，多为 16，少量 14/20/10）。
   颜色骑 `currentColor`，`aria-hidden` 是内置的——**无障碍名字归你**。
@@ -620,7 +624,7 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
 > `packages/client/{ui-layout,ui-sidebar,ui-settings-plugins}` 的 README 与 `src/client/*.module.css`
 > （外壳几何、设置页与侧栏的具体数值）。
 
-槽位 key 的**选择与注册写法**见 [settings-panel.md](settings-panel.md) 与官方 `docs/subsystems/slots.md`；这里只讲"放进那个位置之后要照抄什么"。
+槽位 key 的**选择与注册写法**见 [07-settings-panel.md](07-settings-panel.md) 与官方 `docs/subsystems/slots.md`；这里只讲"放进那个位置之后要照抄什么"。
 本节形如 `SidebarRoot.module.css:9-14` 的引用都在官方仓库
 `packages/client/<包>/src/client/` 下（`ui-sidebar` / `ui-layout` / `ui-settings-plugins` …），
 `*.tsx:NN` 同理。
@@ -677,7 +681,7 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
 
 ## 10. 常见插件形态的配方
 
-> 来源：`docs/ui-radius.md`「Settings card materials」＋ [settings-panel.md](settings-panel.md)（槽位与写入语义）
+> 来源：`docs/ui-radius.md`「Settings card materials」＋ [07-settings-panel.md](07-settings-panel.md)（槽位与写入语义）
 > ＋ 本文件 §8（控件）＋ 官方 `ui-commands` / `ui-input-trigger` 源码（§10.7 的命令行图标）
 > ＋ 实测参考实现 `vlln/whale-girl` 的决策记录（自绘控件的返工教训）。
 
@@ -703,13 +707,13 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
   要"改完立即写入"就别用它（用 `SettingsFormModel` 自己 save，或直接写 scope）。
 - 库内确实没有的语义才自绘，并在文件头注释写明理由（示例：多行文案池——官方没有
   "Enter 换行、Shift+Enter 提交"这类多行编辑语义的控件）。
-- 槽位注册写法见 [settings-panel.md](settings-panel.md)（`plugins.item` / `plugins.bundle.config` …）。
+- 槽位注册写法见 [07-settings-panel.md](07-settings-panel.md)（`plugins.item` / `plugins.bundle.config` …）。
 
 ### 10.2 会话页签 / 全局面板页
 
 - 挂 `conversation.view`：**给视图根元素加稳定 `data-*`**（如 `data-mypanel-view`），并
   `:has([data-mypanel-view]) [data-width-handle]{display:none}` 关掉随之继承的拖动宽度手柄
-  （见 [gotchas.md](gotchas.md) 12）。不要锚官方 CSS Module 的哈希类名。
+  （见 [13-gotchas.md](13-gotchas.md) 12）。不要锚官方 CSS Module 的哈希类名。
 - 挂 `main` 全局面板：入口页顶部自 pad `--dsh-frame-top-clearance`（Windows 是 caption 高度）；
   内容贴到左上角时再 pad `--dsh-frame-leading-clearance`。同一 `id` 也要在 `sidebar.panellist` 注册图标。
 - 面板底色用 `--dsw-alias-bg-base` / `-layer-1`；不要自带整页背景、自带滚动条皮肤或 `z-index` 军备竞赛。
@@ -830,7 +834,7 @@ ctx.inject(['commandUi'], (scope) => {
 7. **没有抄第二份**：能用官方控件的都用了；自绘处注释写明"库内没有该语义"的理由。
 8. **窄布局不破**：长标签、长路径、长文案、长 JSON 不撑破容器（`min-width: 0`、`overflow-wrap`、
    横向滚动交给既有滚动区）。
-9. **样式没被宿主吃掉**：关键样式按 [gotchas.md](gotchas.md) 4 用内联兜底；
+9. **样式没被宿主吃掉**：关键样式按 [13-gotchas.md](13-gotchas.md) 4 用内联兜底；
    在真实 GUI 里确认过渲染结果，而不是只看源码。
 
 ## 未确认与已知源码边界（0.2.0-rc.2）
@@ -839,7 +843,7 @@ ctx.inject(['commandUi'], (scope) => {
 
 - **本文件数值来自 `dsh-v0.2.0-rc.2` 源码。** master 已有新增（`InlineEditor`、`HoverCardGroup`、
   `CommandText`、字体设置行等），**安装版上不存在**；写代码前先在你的应用 bundle 里核实符号存在
-  （[gotchas.md](gotchas.md) 10）。
+  （[13-gotchas.md](13-gotchas.md) 10）。
 - **两个悬空 token**：`ui-primitives` 的 `settings-form/SettingsForm.module.css` 读
   `--dsw-alias-label-error`、`settings-form/fields.module.css` 读 `--dsw-alias-bg-layer-4`，
   而 `ui-theme` 的 8 张样式表（含 master）**都没有定义**这两个名字。自绘时不要照抄。
@@ -856,6 +860,6 @@ ctx.inject(['commandUi'], (scope) => {
 - 未核到的槽位元数据：`sidebar.*` / `settings.*` / `plugins.*` 的多数 key 的 cardinality/scope——
   快照内只有 `main`（keyed+root）、`shell.leading`（single+root）、`sidebar.panellist`（list+root）、
   `settings.plugins.tab`（list+root）四处可证；其余按官方 `docs/subsystems/slots.md` 与
-  [settings-panel.md](settings-panel.md) 现场核实。
+  [07-settings-panel.md](07-settings-panel.md) 现场核实。
 - `PathLabel` 依赖的 `pathPartsOf`（`@deepseek-ai/dsh-util-workspace-path`）目录/文件名切分语义
   未在本次核查范围内确认。

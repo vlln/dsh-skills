@@ -1,23 +1,22 @@
 # 官方设置面集成（条目 Config + Plugins 页卡片）
 
+> **本文件回答**：`Config` schema + Plugins 页配置卡片的契约与验证。**不回答**：UI 视觉（→ 06）、文案字典（→ 08）。
+
 **来源**：官方 client 包源码——`dsh-client-ui-settings-plugins`（`settings.plugins.tab` 槽声明）、
 `dsh-client-ui-plugin-manager`（`plugins.*` 槽）、`dsh-client-ui-primitives/settings-form/*`（控件与暂存模型）——
-与官方 `docs/subsystems/slots.md`；其余为**实测**（基线 **0.2.0-rc.2**，参考实现 `vlln/whale-girl`）。
+与官方 `docs/subsystems/slots.md`；其余为**实测**（基线 **0.2.0-rc.2**；0.2.1-rc.1 复核：槽 `settings.plugins.tab` / `plugins.item` / `plugins.bundle.config` / `plugins.row.config`、`view: 'summary' | 'page'`、`configForms` / `settingsSchema`、volatile 经 profile patch 持久化均成立）。
 复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
 
-第三方插件把自己参数的配置页挂进**侧边栏 Plugins 页**的方法——注意**不是**「设置 → 插件」：
-那里现在是**只读的插件清单**（`dsh-client-ui-settings-plugin-inventory` 的 Plugin list tab，
-外壳是 `dsh-client-ui-settings-plugins` 的 `settings.plugins.tab` 槽，不提供配置写入）。
-基线 **0.2.0-rc.2**
-（实测参考实现：`vlln/whale-girl` 的配置卡片）。分两个 half：Node half 用**条目
-`Config` schema** 声明设置命名空间；client half 把配置页注册进 **Plugins 页的槽**。
+第三方插件把自己参数的配置页挂进**侧边栏 Plugins 页**的方法——注意**不是**「设置 → 插件」：那里现在是**只读的插件清单**（`dsh-client-ui-settings-plugin-inventory` 的 Plugin list tab，外壳是 `dsh-client-ui-settings-plugins` 的 `settings.plugins.tab` 槽，不提供配置写入）。
+
+分两个 half：Node half 用**条目 `Config` schema** 声明设置命名空间；client half 把配置页注册进 **Plugins 页的槽**。实测参考实现：`vlln/whale-girl` 的配置卡片。
 
 > 官方文档覆盖同一主题（[adding-a-settings-card.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cookbook/adding-a-settings-card.md)）。
 > 与官方冲突时以官方为准；本文件保留的是实测细节与踩坑。
 
 ## 1. 契约锚点（0.2.0-rc.2 实测）
 
-- **设置命名空间 = 导出 `Config` schema 的条目 id`**。插件不再自行注册命名空间名字；
+- **设置命名空间 = 导出 `Config` schema 的条目 id**。插件不再自行注册命名空间名字；
   宿主 `dsh-settings` 的 `describe()` 会跳过没有 `Config` 的条目——没导出它就等于
   「这个插件没有设置面」（配置页不出现、旧 `settings.yaml` section 不被读取）。
 - **配置入口在侧边栏 Plugins 页，不在 Settings**。Settings → 插件 是**只读清单**（inspect only，
@@ -41,7 +40,7 @@
   换成引用。插件的 `Config` 必须用 fork 构建。
 - 客户端注入面：`slots`（槽注册）、`locale`（文案）、`configForms`（配置读写传输）。
   **`settingsScope` / `settings.plugin.item` 已退役**——注入了宿主不存在的服务会让整个
-  client 条目永久 pending（见 [gotchas.md](gotchas.md) §9）。
+  client 条目永久 pending（见 [13-gotchas.md](13-gotchas.md) §8）。
 
 ## 2. Node half：`Config` schema + 读值
 
@@ -134,7 +133,7 @@ export function apply(ctx) {
   **hooks 要放在视图分支之前**（同一实例两种视图共用同一钩子序列）。
 - `summary` 回一句话（卡片/pc 页的 one-liner）；`page` 画字段区与**自己的保存脚注**。
   `plugins.bundle.config` 的 chrome（图标/标题/描述/面包屑）由包页画，组件不要再画卡头。
-- 平台种子表 `getStaticModules()` 提供 `react` / `react-dom` / `@deepseek-ai/cordis` /
+- 平台静态模块表（0.2.1 类型里是 `staticModules`；0.2.0 叫 `getStaticModules()`）提供 `react` / `react-dom` / `@deepseek-ai/cordis` /
   `@deepseek-ai/dsh-client-store` / `@deepseek-ai/dsh-client-ui-slots` /
   **`@deepseek-ai/dsh-client-ui-primitives`** / `@deepseek-ai/dsh-client-ui-dockkit`；
   primitives 里有 `Switch`、`Input`、`Tag`、`Modal`、`SettingsForm`、`SettingsValueField`
@@ -161,7 +160,7 @@ export function apply(ctx) {
    ```sh
    dsh --profile web --dump-config-schema | grep -A3 '"id": "my-plugin"'
    # 期望 status: "schema" 与 configRef；"absent" = 模块没加载，或 entry 用了 export default
-   # 把 Config 遮住（loader 的 unwrapExports 只取 default——见 entry-contract.md）
+   # 把 Config 遮住（loader 的 unwrapExports 只取 default——见 04-plugin-contract.md）
    ```
 
 2. **卡片渲染**（浏览器，headless Chrome CDP）：打开 `Plugins` 页 → 点

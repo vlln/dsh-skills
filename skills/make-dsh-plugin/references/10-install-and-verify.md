@@ -1,10 +1,12 @@
 # 安装与验证详情
 
+> **本文件回答**：安装通道、按改动面验证、负控、图标验收、排查顺序。**不回答**：发布与推广（→ 11 / 12）、纪律清单（→ 09）。
+
 **来源**：本 skill 的**验证纪律**（负控、按改动面取最窄证据）＋ 对官方 `apps/cli/reference/README.md`
 （安装 / 层栈行为）与 `dsh-hmr` / `dsh-plugin-manager` / `cordis-plugin-loader` 的实测核查；
 "哪个版本会怎样"是实测记录，不是跨版本承诺。复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
 
-外部插件统一经 web profile 安装，两条通道（本文件是 SKILL.md 的深读材料，开发安装面时读取）。
+外部插件统一经 web profile 安装，两条通道：
 
 ## Bundle 插件安装
 
@@ -12,7 +14,11 @@
 dsh plugin --profile web add <包路径>
 ```
 
-`<包路径>` = 含 `package.json#dsh.bundle` 的 npm 包目录/git 源（`dsh plugin add` 转发 pnpm + 按已安装状态把声明 `dsh.bundle` 的依赖加进 profile 层栈）。本地目录 `cd` 到包目录后 `add .`（dsh 锚定 `.` 为绝对路径）；git 源 monorepo 子目录 `#<commit>&path:/<子目录>`（**Windows 注意：`dsh plugin` 经 cmd.exe 转发，`&` 是命令分隔符会拆开命令——给用户的安装说明写不带 `&` 的 `#path:/<子目录>` 形式，取默认分支 HEAD，跨平台；钉分支需绕开 dsh 转发，见 [gotchas.md](gotchas.md) 1c**），**产物入库（推荐）→ 真一行**，不入库则 `prepare` + `allowBuilds` 放行——写法细则与坑见 [bundle-plugins.md](bundle-plugins.md)「安装与管理」与 [gotchas.md](gotchas.md) 1c；bundle 不声明官方包依赖（见 [gotchas.md](gotchas.md) 1）。安装后检查实际挂载状态；是否需要重启见下表，不由 bundle 形态单独决定。
+`<包路径>` = 含 `package.json#dsh.bundle` 的 npm 包目录/git 源（`dsh plugin add` 转发 pnpm + 按已安装状态把声明 `dsh.bundle` 的依赖加进 profile 层栈）。本地目录 `cd` 到包目录后 `add .`（dsh 锚定 `.` 为绝对路径）；git 源 monorepo 子目录 `#<commit>&path:/<子目录>`（**Windows 注意：`dsh plugin` 经 cmd.exe 转发，`&` 是命令分隔符会拆开命令——给用户的安装说明写不带 `&` 的 `#path:/<子目录>` 形式，取默认分支 HEAD，跨平台；钉分支需绕开 dsh 转发，见 [13-gotchas.md](13-gotchas.md) 1c**），**产物入库（推荐）→ 真一行**，不入库则 `prepare` + `allowBuilds` 放行——写法细则与坑见 [05-bundle-plugins.md](05-bundle-plugins.md)「安装与管理」与 [13-gotchas.md](13-gotchas.md) 1c；bundle 不声明官方包依赖（见 [13-gotchas.md](13-gotchas.md) 1）。安装后检查实际挂载状态；是否需要重启见下表，不由 bundle 形态单独决定。
+
+## Desktop 安装
+
+官方 Desktop 上从**应用内的 Plugins 页**安装（共享插件管理器 + 内置 pnpm）；`$DSH_HOME/profiles/desktop` 由 Electron 独占，npm 安装的 `dsh` 不能改它，CLI 也不能启动该 profile。Desktop 自带的 `dsh` 命令可在**完全退出应用后**管理它。版本、调试与恢复见 [14-desktop.md](14-desktop.md)。
 
 ## 纯 cordis 插件安装
 
@@ -30,17 +36,18 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 
 ## 验证按改动面
 
-**核查记录：安装版 DSH 0.2.0-rc.2 的实现；不是对所有版本的承诺。**
-先查有效组合中是否有 `hmr` 服务，以及源码 watcher 的 root/ignored。该版 `dsh-base`
-在有 profileContext 时加载 HMR，默认 `root: []`：配置可热协调，源码监听另行启用。
+**核查记录：0.2.0-rc.2 实测 + 0.2.1-rc.1 复核（HMR 替换语义）；不是对所有版本的承诺。**
+先查有效组合中是否有 `hmr` 服务，以及源码 watcher 的 root/ignored。`dsh-base` 在有 `profileContext`
+时以 **`root: []`** 启用 HMR（仅配置热协调）；`dsh-hmr` 自身的默认是 `root: ["."]`、`ignored`
+含 `**/node_modules` / `**/.*` / `cache` / `data`——**源码监听要显式开**。
 
 | 改动 | 该版的处理与验证 |
 |---|---|
 | CLI 新增/移除 bundle | 安装器更新 profile bundles 列表；有 HMR 时监视 manifest 并重新协调层栈。验证插件实际挂载/卸载，不默认重启 |
 | GUI 首装 bundle、启停 | 有 HMR 时调用配置协调；没有 HMR 时按返回的 restart-required / stop-profile 提示处理 |
-| 已装包升级、同路径重装 | GUI 对已存在依赖升级明确返回 restart-required；CLI 的 bundles 列表未变时配置 watcher 会跳过。不要把重装当成代码热更新 |
+| 已装包升级、同路径重装 | 0.2.1：**下一次 profile 重组**会替换磁盘上已变化的插件，**包括 `node_modules` 下的已安装包与 link 目标**，不需要 root 监听；重组由 bundles 列表、profile/home patch、plugin manager 操作触发。文件变了但没触发重组时看不出变化——主动触发再验证，别把"重装"当热更新 |
 | volatile 配置 | 仅 volatile 值变更时原地更新；其他配置变更可能重新挂载 |
-| Node half 源码 | 显式配置源码 HMR 且路径命中时可清缓存重载；默认不监听源码，node_modules 通常被忽略。未生效才用重启兜底 |
+| Node half 源码 | 两条路径：① 源码 HMR（显式配置 `root` 且路径命中、不被 `ignored` 排除）② profile 重组时的文件变化替换（覆盖 `node_modules`/link，无需 root）。替换加载失败 → 插件以 `failed` 报告（不是"需要重启"）。都不生效才重启兜底 |
 | client half | 先重建产物；按客户端 HMR / 页面刷新验证新 bundle。HMR 接收器存在不等于构建 watcher 在运行 |
 | 顶层 icon / 图标资源 | 元数据读取直接读 manifest 与图片文件；刷新 Plugins 数据可更新，无须据此重启 Node 插件。仍需验证实际图片和打包结果 |
 | bundle 内部 patch 单独变化 | 不等于 profile bundles 列表变化；须验证配置重读是否实际触发，不假定所有文件都受 watch |
@@ -93,11 +100,11 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 2. **先做负控（prove the failure mode is loud）**。把一份**故意弄坏**的副本装上（删掉 `inject`、或把包放到 profile 树外），确认日志会响亮报错；只有负控响过，"干净日志"才算证据。
 3. **mock ctx 单测不能替代真实装载**。手写 mock 不施加 cordis 的严格注入门禁，所以"`apply()` 里注册了 N 个工具"的测试**照不出**缺 `inject` 的启动即崩。单测证明"逻辑对"，真实 profile 启动证明"装得上、起得来"——两者都要，不能互相代替。
 
-验证环境用**安装版 dsh**（`npm i @deepseek-ai/dsh@<rc>`）与隔离 `DSH_HOME`——直接跑源码 checkout 会因官方包镜像不完整而整树失败，见 [gotchas.md](gotchas.md) 8。
+验证环境用**安装版 dsh**（`npm i @deepseek-ai/dsh@<rc>`）与隔离 `DSH_HOME`——直接跑源码 checkout 会因官方包镜像不完整而整树失败，见 [13-gotchas.md](13-gotchas.md) 9。
 
 ## 随包分发 skill（走文件系统发现根）
 
-skill 是跨 harness 的规范，落位方式是**复制或链接 `skills/<name>/` 进发现根**：项目级 `<项目>/.dsh/skills`、`<项目>/.agents/skills`；用户级 `$DSH_HOME/skills`、`~/.agents/skills`（另有 custom 与 bundled 两类）。`dsh.skills` 声明在当前基线不生效——事实与核实方法见 [entry-contract.md](entry-contract.md)「dsh.skills」。
+skill 是跨 harness 的规范，落位方式是**复制或链接 `skills/<name>/` 进发现根**：项目级 `<项目>/.dsh/skills`、`<项目>/.agents/skills`；用户级 `$DSH_HOME/skills`、`~/.agents/skills`（另有 custom 与 bundled 两类）。`dsh.skills` 声明在当前基线不生效——事实与核实方法见 [04-plugin-contract.md](04-plugin-contract.md)「dsh.skills」。
 
 安装说明要给**可直接复制**的命令，例如（插件已装好的用户级链接）：
 
@@ -108,7 +115,7 @@ ln -s "$DSH_HOME/profiles/web/node_modules/<pkg>/skills/<name>" "$DSH_HOME/skill
 
 ## 挂载失败排查
 
-`plugin tree failed to load` 的排查顺序与严格注入/引号坑见 [gotchas.md](gotchas.md) 3。
+`plugin tree failed to load` 的排查顺序与严格注入/引号坑见 [13-gotchas.md](13-gotchas.md) 3。
 
 ## 参考实现
 

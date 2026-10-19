@@ -33,15 +33,15 @@ Step 3 Node half → Step 4 client half（可选）→ Step 5 安装与验证 �
 （发布可选）→ Step 6 README 与开发规范。
 
 **权威契约内嵌在本 skill 的 `references/`**（bundle + entry + skill + MCP 在
-`bundle-plugins.md` 与 `entry-contract.md`、验证在 `install-and-verify.md`、
-规范在 `dev-conventions.md`、坑在 `gotchas.md`、**UI 风格在 `ui-style.md`**、
-**多语言在 `i18n.md`**）——开发不需要任何仓库文档。到达对应阶段时读对应 reference
-（`ui-style.md` 是查阅型手册，按需查章节，不必通读）。
+`05-bundle-plugins.md` 与 `04-plugin-contract.md`、验证在 `10-install-and-verify.md`、
+规范在 `09-dev-conventions.md`、坑在 `13-gotchas.md`、**UI 风格在 `06-ui-style.md`**、
+**多语言在 `08-i18n.md`**）——开发不需要任何仓库文档。到达对应阶段时读对应 reference
+（`06-ui-style.md` 是查阅型手册，按需查章节，不必通读）。
 
 ## 版本与权威来源
 
 **机制契约的版本权威是官方文档**（随基线更新，优先于本 skill 的复述；发现冲突时以官方为准并回来更新本 skill）。
-⚠️ 但**官方文档与源码 checkout 跟的是 master，可能领先于用户实际安装的 rc**——两者冲突时以**安装的运行时**为准，并把差异与版本号写回来（实例见 [gotchas.md](references/gotchas.md) 9）。
+⚠️ 但**官方文档与源码 checkout 跟的是 master，可能领先于用户实际安装的 rc**——两者冲突时以**安装的运行时**为准，并把差异与版本号写回来（实例见 [13-gotchas.md](references/13-gotchas.md) 9）。
 
 | 主题 | 官方位置（`deepseek-ai/deepseek-harness` 仓库内） |
 |---|---|
@@ -77,14 +77,14 @@ Step 3 Node half → Step 4 client half（可选）→ Step 5 安装与验证 �
    `git show dsh-v0.2.0-rc.2:<路径>`（先 `git fetch --tags origin`），或
    `https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/dsh-v0.2.0-rc.2/<路径>`。
    版本号先取现场值（`dsh --version`）。
-3. **master**：只在判断"官方接下来往哪走"时看；**不要拿它当插件的行为依据**（[gotchas.md](references/gotchas.md) 9）。
+3. **master**：只在判断"官方接下来往哪走"时看；**不要拿它当插件的行为依据**（[13-gotchas.md](references/13-gotchas.md) 9）。
 
 **本 skill 保留两类官方文档不写的内容**：
 
 1. **发布与生态纪律**——发布检查清单、仓库 description/topics 规则、README 读者规则、门禁与决策记录、安装说明纪律（Step 5b / Step 6）；
-2. **实测坑与验证纪律**——`references/gotchas.md`（踩出来的领域事实）与 `references/install-and-verify.md`（含"负控"这类方法论）。
+2. **实测坑与验证纪律**——`references/13-gotchas.md`（踩出来的领域事实）与 `references/10-install-and-verify.md`（含"负控"这类方法论）。
 
-**新增会话页签前先读** [gotchas.md](references/gotchas.md) 12：`conversation.view` 各页签**共用**
+**新增会话页签前先读** [13-gotchas.md](references/13-gotchas.md) 12：`conversation.view` 各页签**共用**
 会话内容区，外壳的左右拖动**宽度手柄**会跟着出现在你的页签上（`[data-width-handle]`，
 两条 `col-resize` 竖线）——用「给视图挂稳定 data 属性 + `:has([data-…-view]) [data-width-handle]{display:none}`」隐藏它。
 
@@ -97,7 +97,7 @@ Step 3 Node half → Step 4 client half（可选）→ Step 5 安装与验证 �
 Cordis 包并运行其 host 与浏览器两半，`tool-cordis` 查询运行时元数据）；**dynamic Cordis**（运行时写插件）。
 
 **升级既有插件跨 rc 时**：服务名、槽名、manifest 字段与平台模块导出名都会改，且**旧名字不报错**
-（症状是 client 条目永久 pending、Node 侧静默失效）——先读 [gotchas.md](references/gotchas.md) 7、8、10
+（症状是 client 条目永久 pending、Node 侧静默失效）——先读 [13-gotchas.md](references/13-gotchas.md) 7、8、10
 的改名清单再动手。
 
 ## 何时使用
@@ -113,11 +113,11 @@ Cordis 包并运行其 host 与浏览器两半，`tool-cordis` 查询运行时�
 
 | 需求 | 官方路径 | 安装通道 | 起点 |
 |---|---|---|---|
-| 纯 skill 包（无代码） | skill 走**文件系统发现根**（`dsh.skills` 字段在当前基线无消费方，见 [entry-contract.md](references/entry-contract.md)） | 复制/链接进发现根（`<项目>/.dsh/skills`、`.agents/skills`、`$DSH_HOME/skills`、`~/.agents/skills`） | Step 2（skills） |
+| 纯 skill 包（无代码） | skill 走**文件系统发现根**（`dsh.skills` 字段在当前基线无消费方，见 [04-plugin-contract.md](references/04-plugin-contract.md)） | 复制/链接进发现根（`<项目>/.dsh/skills`、`.agents/skills`、`$DSH_HOME/skills`、`~/.agents/skills`） | Step 2（skills） |
 | MCP server | **不是包 manifest 字段**：CLI 随附 `@deepseek-ai/dsh-mcp-client` 供 **patch 层**使用，默认禁用（每条服务器命令是 agent 沙箱之外的受信任可执行代码） | patch 层 config | `apps/cli/reference/README.md` |
 | Node 工具 / 事件 / 服务 | npm 包 + Cordis entry（`main`） | profile insert 行 | Step 3 |
 | Node + 浏览器 UI | npm 包 + Cordis entry + `dsh.client` | bundle | Step 3 + 4 |
-| 带组合层（多行 insert/config/disabled 随包分发） | npm 包 + `dsh.bundle` | bundle 层栈 | 读 `references/bundle-plugins.md` |
+| 带组合层（多行 insert/config/disabled 随包分发） | npm 包 + `dsh.bundle` | bundle 层栈 | 读 `references/05-bundle-plugins.md` |
 
 **核心判据**：包是否声明 `dsh.bundle.patch`。声明 = 一层组合
 patch（多个 insert/config/disabled 行）→ `dsh plugin --profile web add` 进层栈；
@@ -141,29 +141,29 @@ my-plugin/
 
 ## Step 2：`package.json` + 能力面
 
-按 `references/bundle-plugins.md` 与 `references/entry-contract.md` 的模板。
+按 `references/05-bundle-plugins.md` 与 `references/04-plugin-contract.md` 的模板。
 关键决策：
 
 - `dsh.bundle.patch` → `cordis.patch.yml`（组合层，含 `- insert: - id: <自身> name: <包名>`）
 - `dsh.client` 声明（platform web）+ `exports["./client"]`（有 client half 时）
 - `main`/`exports["."]` 指向 Cordis entry（`name`/`inject`/`Config`/`apply`）
-- `dependencies`/`peerDependencies`/`devDependencies` **三处都留空**——官方包由挂载环境注入（理由与本地 link 配方见 [gotchas.md](references/gotchas.md) 1）；唯一例外是 schema 要用 dsh 的 fork
+- `dependencies`/`peerDependencies`/`devDependencies` **三处都留空**——官方包由挂载环境注入（理由与本地 link 配方见 [13-gotchas.md](references/13-gotchas.md) 1）；唯一例外是 schema 要用 dsh 的 fork
   `@deepseek-ai/schemastery`（公共 `schemastery` 没有 `.volatile()`），装成普通 `dependencies`
 - `inject` 声明 `ctx.get` 用到的全部服务（`httpServer`/`jobs` 等）。**严格注入两个方向都会出事**：
   - **声明了但宿主没有**（名字写错、或该服务已被新 rc 移除）→ 条目**永久 pending**，
     boot 日志只有一行 `warning: 1 entry did not activate`，该插件的功能与 UI 一起消失；
   - **用到了却没声明** → apply 开头即抛 `cannot get property without inject`。
   两种都**照不出来于 mock ctx 单测**——必须真启动一次 profile 才算验证过（Step 5）
-- 服务名与槽名以**当前基线**为准逐条核实：官方会跨 rc 改名（[gotchas.md](references/gotchas.md) 7、8）
+- 服务名与槽名以**当前基线**为准逐条核实：官方会跨 rc 改名（[13-gotchas.md](references/13-gotchas.md) 7、8）
 - **包显示元数据**（Plugins 页里的标题与一句话描述）：`locale/en.json` + `locale/zh.json` 的
   `meta.title` / `meta.description`，并把 `"./locale/*.json"` 同时加进 `exports` 与 `files`
-  ——少了 `files` 发布出去就丢（写法与回退链见 [i18n.md](references/i18n.md) §2）
+  ——少了 `files` 发布出去就丢（写法与回退链见 [08-i18n.md](references/08-i18n.md) §2）
 
 ### Skill 包（`dsh.skills`）与 MCP server（`dsh.mcpServers`）
 
 声明写法（`dsh.skills` 相对路径列表 / `dsh.mcpServers` 的 server-id → 启动
 配置映射）与 SKILL.md 写法规范（frontmatter / 正文模式 / <500 行，遵循
-make-skill）见 `references/entry-contract.md` 对应小节——不要发明竞争格式。
+make-skill）见 `references/04-plugin-contract.md` 对应小节——不要发明竞争格式。
 
 ## Step 2b：绘制插件图标（必做）
 
@@ -178,7 +178,7 @@ make-skill）见 `references/entry-contract.md` 对应小节——不要发明�
   不用字体字形、外链资源或脚本；不要把 README 功能截图当作插件图标。
 - 在 **`package.json` 顶层**写 `"icon": "./icon.svg"`，**不是 `dsh.icon`**；
   `files` 打包白名单包含图标，并保留 `exports["./package.json"] = "./package.json"`。
-- 完成前读 [install-and-verify.md](references/install-and-verify.md)「插件图标：机械验证与视觉验收」，
+- 完成前读 [10-install-and-verify.md](references/10-install-and-verify.md)「插件图标：机械验证与视觉验收」，
   验证打包结果、真实 Plugins 图片加载，**并实际查看渲染图像**；只证明文件存在不算完成。
 
 ## Step 3：Node half——Cordis entry
@@ -206,7 +206,7 @@ extends `tsconfig.base.client.json` + 共享 tsdown preset（`packages/client/ts
 构建：esbuild/tsdown CJS 输出 + 外层 `window.__ModuleLoader__.load` 包装（对齐
 官方 preset 的 banner/footer 模式）。
 
-**画 UI 之前先读 `references/ui-style.md`**：官方 `docs/web-styling.md` 与 `docs/ui-radius.md`
+**画 UI 之前先读 `references/06-ui-style.md`**：官方 `docs/web-styling.md` 与 `docs/ui-radius.md`
 规定了样式归属与圆角标准，那份 reference 把它们翻成插件作者可照抄的形式——三/四层 token、
 配色速查、圆角按角色选档、字体阶梯、阴影与浮层材质、焦点与滚动条，以及**可直接复用的官方控件
 目录（逐组件 props / 几何 / token / 选型判据）**、**`/` 菜单命令行的图标**（含宿主命令没有官方
@@ -216,21 +216,21 @@ extends `tsconfig.base.client.json` + 共享 tsdown preset（`packages/client/ts
 **UI 文案先分流再动手**：浏览器 UI 的文案走**客户端字典**（`ctx.locale.register(ns, { zh, en })` +
 slot 注册项的 `locale` 座位拿 `t`），Plugins 页的插件标题/描述走 `locale/*.json`，
 宿主产生的用户可见文本官方自身留英文（要本地化读 `locale` 设置命名空间的 `preference`）——
-判据表、键的写法（点分小写）、改造清单与验证见 [i18n.md](references/i18n.md)。
+判据表、键的写法（点分小写）、改造清单与验证见 [08-i18n.md](references/08-i18n.md)。
 **模型可见文本（tool/schema description）不是 UI 文案**，不要翻译。
 
 **填官方设置面（可选）**：Node half 导出 `Config` schema 声明命名空间（= 条目 id），
 client half 把配置页注册进 Plugins 页的槽（自有 bundle 用 `plugins.bundle.config`，
 key = 包名）；live 字段标 `.volatile()`，保存即生效、不重挂载。完整契约
 （槽选择、读写语义、四处同名不变量、验证步骤）见
-`references/settings-panel.md`；实测参考实现 `vlln/whale-girl` 的配置卡片。
+`references/07-settings-panel.md`；实测参考实现 `vlln/whale-girl` 的配置卡片。
 
 **检查点**：`__DSH_BOOT__` 含 client 行；`/plugins/<id>/client.js` 200；无
 `loaded without registering` 报错。
 ## Step 5：安装与验证
 
-安装通道（写法细则见 `references/install-and-verify.md` 与
-`references/bundle-plugins.md`）：
+安装通道（写法细则见 `references/10-install-and-verify.md` 与
+`references/05-bundle-plugins.md`）：
 
 - **bundle**：`dsh plugin --profile web add <包路径/git 源/npm 包/tarball>`——声明 `dsh.bundle`
   的包；安装后的生效检查见下述引用，不预设必须重启。
@@ -242,7 +242,7 @@ key = 包名）；live 字段标 `.volatile()`，保存即生效、不重挂载�
   ②的授权语义是**允许该包在安装时于用户机器上执行代码**（不在 agent 沙箱内）——安装说明里要写明并建议钉 commit。
 
 **写安装说明时必须给出用户可直接复制的命令**；验证按改动面（哪些需重启
-web vs 只刷新）与挂载失败排查见 `references/install-and-verify.md`。
+web vs 只刷新）与挂载失败排查见 `references/10-install-and-verify.md`。
 
 **三条硬规矩**（该文件详述，这里先记住结论）：
 
@@ -254,7 +254,7 @@ web vs 只刷新）与挂载失败排查见 `references/install-and-verify.md`�
    照不出来。
 
 **零依赖包的安装说明只给 git 源**：本地目录装的包落在 profile 树外时官方包解析不到，
-会拖垮整个 profile 启动（[gotchas.md](references/gotchas.md) 6）；本地目录安装只用于开发自测，
+会拖垮整个 profile 启动（[13-gotchas.md](references/13-gotchas.md) 6）；本地目录安装只用于开发自测，
 且要先 link SDK。
 
 ## Step 5b：交付检查与发布
@@ -262,10 +262,10 @@ web vs 只刷新）与挂载失败排查见 `references/install-and-verify.md`�
 ### 交付检查清单（做完插件就过一遍，与是否公开发布无关）
 
 - [ ] `package.json#main`/`exports` 指向 entry；`dsh.bundle.patch` → `cordis.patch.yml`；
-      insert 行与包名同源；**依赖三字段为空**（[gotchas.md](references/gotchas.md) 1）
+      insert 行与包名同源；**依赖三字段为空**（[13-gotchas.md](references/13-gotchas.md) 1）
 - [ ] 已绘制插件图标；顶层 `icon`、打包包含与 manifest 导出正确；真实 Plugins 页图片
       加载通过，且完成实际视觉检验（Step 2b；机械验证不能替代看图）
-- [ ] 带 UI 时过了 [ui-style.md](references/ui-style.md) 的**交付前视觉自检**：浅色/深色各看一次、
+- [ ] 带 UI 时过了 [06-ui-style.md](references/06-ui-style.md) 的**交付前视觉自检**：浅色/深色各看一次、
       没有写死颜色、焦点与 disabled 态齐、圆角按角色选档、能复用官方控件的地方没有自绘
 - [ ] 门禁通过（`scripts/gates/run.mjs`）——仓库自带门禁，含自证测试
 - [ ] README 有安装（`dsh plugin --profile web add` 含具体 ref，命令可直接复制）、使用、能力表
@@ -274,7 +274,7 @@ web vs 只刷新）与挂载失败排查见 `references/install-and-verify.md`�
 - [ ] README **只含面向使用者的内容**——工程备忘录（机制/验证证据/踩坑）已移到
       `AGENTS.local.md`、代码注释或 `docs/engineering-notes.md`，README 只留一句指针
 - [ ] **安装冒烟含一次真实工具/命令调用**（boot 干净 ≠ 功能可用），且做过负控
-      （[install-and-verify.md](references/install-and-verify.md)「三条硬规矩」）
+      （[10-install-and-verify.md](references/10-install-and-verify.md)「三条硬规矩」）
 
 ### 公开发布（可选）
 
@@ -316,7 +316,7 @@ web vs 只刷新）与挂载失败排查见 `references/install-and-verify.md`�
 
 **公开发布的补充检查**：
 - [ ] 面向用户的安装说明**只给 git 源**（零依赖包的本地目录装有前置条件，见
-      [gotchas.md](references/gotchas.md) 6）
+      [13-gotchas.md](references/13-gotchas.md) 6）
 - [ ] 仓库 description = 一句话"是什么 + 能干什么"（**无安装命令样板**）
 - [ ] 仓库 topics 至少含 `dsh-plugin` 与 `deepseek-harness`，另加 1-3 个功能词
 
@@ -366,7 +366,7 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
 
 ## Step 6：开发规范
 
-可维护的插件遵循 `references/dev-conventions.md` 的纪律：门禁（自证测试）、
+可维护的插件遵循 `references/09-dev-conventions.md` 的纪律：门禁（自证测试）、
 每个非平凡改动的决策记录、生成物不手改、首次环境行为沉淀为环境事实。
 
 **README 规范**（make-skill spec + 用户 2026-09 定调）：
@@ -407,7 +407,7 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
 | 其它版本 | ⚠️ 未验证——升级 dsh 后若 <用户可见症状>，多半是 <一行原因> |
 ```
 
-- **与 `peerDependencies` 同源**：声明了官方 peer 范围（见 [bundle-plugins.md](references/bundle-plugins.md)）
+- **与 `peerDependencies` 同源**：声明了官方 peer 范围（见 [05-bundle-plugins.md](references/05-bundle-plugins.md)）
   的插件，README 写的"已验证基线"必须是那个范围的**下限**（例：peer `^0.2.0-rc.2` ⇄ README 写
   `0.2.0-rc.2`）——两处不一致时用户会照 README 装上却被宿主预检整行禁用。多支持线插件
   按 [DSH-better-sidebar](https://github.com/vlln/DSH-better-sidebar) 的"按你的 dsh 版本选插件版本"
@@ -450,27 +450,27 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
 
 每个按本 skill 产出的插件 README 都带此节（安装说清通道与重启条件即可）。
 
-**进入迭代期时读 `references/dev-conventions.md`**。
+**进入迭代期时读 `references/09-dev-conventions.md`**。
 
 ## 坑（Gotchas）
 
 高频坑（官方包不可单独安装、ESM 缓存、严格注入、宿主 CSS 覆盖、entry 契约
-失败时机等）见 [gotchas.md](references/gotchas.md)（唯一清单）；**先读它再动手**。
+失败时机等）见 [13-gotchas.md](references/13-gotchas.md)（唯一清单）；**先读它再动手**。
 
 ## 参考
 
 本 skill 自带的契约与手册（都在 `references/`）：
 
-- [bundle-plugins.md](references/bundle-plugins.md) — bundle 插件（`dsh.bundle` / `dsh.client`）开发
-- [entry-contract.md](references/entry-contract.md) — Cordis entry、`dsh` 字段（skills / mcpServers）、自渲染 client
-- [settings-panel.md](references/settings-panel.md) — 官方设置面集成（条目 `Config` + volatile + Plugins 页槽 + 验证）
-- [i18n.md](references/i18n.md) — 多语言（客户端字典 / 包显示元数据 `locale/*.json` /
+- [05-bundle-plugins.md](references/05-bundle-plugins.md) — bundle 插件（`dsh.bundle` / `dsh.client`）开发
+- [04-plugin-contract.md](references/04-plugin-contract.md) — Cordis entry、`dsh` 字段（skills / mcpServers）、自渲染 client
+- [07-settings-panel.md](references/07-settings-panel.md) — 官方设置面集成（条目 `Config` + volatile + Plugins 页槽 + 验证）
+- [08-i18n.md](references/08-i18n.md) — 多语言（客户端字典 / 包显示元数据 `locale/*.json` /
   宿主侧文案的三条路 / 改造清单与验证）
-- [ui-style.md](references/ui-style.md) — 插件 UI 风格（token 配色 / 圆角 / 字体 / 浮层材质 /
+- [06-ui-style.md](references/06-ui-style.md) — 插件 UI 风格（token 配色 / 圆角 / 字体 / 浮层材质 /
   焦点与滚动条 / 官方控件选型与逐组件规格 / `/` 菜单命令行图标 / 落位对齐 / 交付前视觉自检）
-- [install-and-verify.md](references/install-and-verify.md) — 安装与按改动面验证
-- [gotchas.md](references/gotchas.md) — 实测坑（唯一清单）
-- [dev-conventions.md](references/dev-conventions.md) — 门禁、决策记录、兼容性标注
+- [10-install-and-verify.md](references/10-install-and-verify.md) — 安装与按改动面验证
+- [13-gotchas.md](references/13-gotchas.md) — 实测坑（唯一清单）
+- [09-dev-conventions.md](references/09-dev-conventions.md) — 门禁、决策记录、兼容性标注
 
 参考实现（公开仓库）：`vlln/whale-girl`（bundle + `__ModuleLoader__.load` client + 设置页配置卡片的完整例子）、
 `vlln/dsh-loop`（工具 + client 条目的更小例子）。

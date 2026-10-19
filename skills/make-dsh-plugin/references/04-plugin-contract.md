@@ -1,10 +1,12 @@
 # Entry 契约详情（Cordis entry + skill + MCP）
 
+> **本文件回答**：`package.json#dsh` / Cordis entry / client half / skill / MCP 的契约。**不回答**：打包与 Git 安装（→ 05）、安装验证（→ 10）。
+
 **来源**：官方 `docs/user/develop/framework/*`（服务与事件契约）、`docs/cookbook/adding-a-package.md`、
 `packages/mcp/mcp-client/README.md`（MCP 字段）；`dsh.skills` 无消费方、命名导出被 `unwrapExports` 遮蔽这类
 **实测**结论标在各条内。基线 **0.2.0-rc.2**（2026-10-15 核）。复核方法见 [SKILL.md](../SKILL.md) 的「溯源」节。
 
-本文件是 make-dsh-plugin 的**自带权威契约**（skill 独立分发，不依赖仓库文档）。bundle 形态完整契约见 [bundle-plugins.md](bundle-plugins.md)；本文件聚焦 Node half（Cordis entry）与 skill/MCP 声明。
+本文件是 make-dsh-plugin 的**自带权威契约**（skill 独立分发，不依赖仓库文档）。bundle 形态完整契约见 [05-bundle-plugins.md](05-bundle-plugins.md)；本文件聚焦 Node half（Cordis entry）与 skill/MCP 声明。
 
 ## 仓库布局
 
@@ -42,11 +44,14 @@ my-plugin/
 }
 ```
 
-- **`dsh.bundle.patch`**：指向 `cordis.patch.yml`（组合层，含 `- insert: - id: <自身> name: <包名>`）——声明即 bundle，进 profile 层栈
+- **`dsh.bundle.patch`**：`string | string[]`——指向 `cordis.patch.yml`（组合层，含 `- insert: - id: <自身> name: <包名>`），或一组按序拼接的 patch 文件；声明即 bundle，进 profile 层栈（数组形态官方 web-app 用它同时分发宿主行与 4 个 agent preset，见 [02-profile-and-preset.md](02-profile-and-preset.md)）
 - **`dsh.client`**：`platform: web`——client-modules 只扫描声明它的包（无声明不进 `__DSH_BOOT__`）。其余字段：`inject`（消费的其他 client 模块）、`external`（本行消费的 client 包，用于排模块图顺序；**不得声明自己**）。client 包 extends `tsconfig.base.client.json` 并用共享 tsdown preset（`packages/client/tsdown.client.ts`）
 - **`exports["./client"]`**：client bundle 路径（`__ModuleLoader__.load` 注册的构建产物）
 - **`main`/`exports["."]`**：指向 Cordis entry（`name`/`inject`/`apply`）
-- **`inject` 声明 `ctx.get` 用到的全部服务**（`settings`/`httpServer` 等）——cordis 严格注入，未声明即抛错
+- **`icon`（顶层）**：SVG / PNG / JPEG / WebP，**≤ 256 KiB**，路径相对 manifest，realpath 后必须仍在包内——Plugins 页标识（绘制要求见 [SKILL.md](../SKILL.md) Step 2b）
+- **`dsh.manifestVersion`**：可选，当前唯一值是 `1`（与 npm 包版本、Session 格式版本无关）
+- **`dsh.client.immediately`**：可选布尔——置 true 进入 boot 第一阶段的注册栅栏（缺省随共享应用批次）；一般插件不要设
+- **`inject` 声明 `ctx.get` 用到的全部服务**（`settings`/`webServer` 等）——cordis 严格注入，未声明即抛错
 - 纯 cordis 插件（无 `dsh.bundle`）可省 `cordis.patch.yml`——经 profile insert 行挂载
 
 ### dsh.skills（skill 包）
@@ -57,19 +62,19 @@ my-plugin/
 "dsh": { "skills": ["./skills/foo/SKILL.md", "./skills/bar/SKILL.md"] }
 ```
 
-**实测事实（0.1.2-rc.1 与 0.1.5-rc.2 两版均核实）**：`dsh.skills` **没有任何消费方**——声明它不会注册 skill。skill 的实际发现路径是**文件系统根**（`<项目>/.dsh/skills`、`<项目>/.agents/skills`、`$DSH_HOME/skills`、`~/.agents/skills`，外加 custom 与 bundled 两类）。核实某基线是否已支持，用一次全量搜（零命中 = 未支持）：
+**实测事实（0.1.2-rc.1 / 0.1.5-rc.2 / 0.2.1-rc.1 三版均核实）**：`dsh.skills` **没有任何消费方**——声明它不会注册 skill。skill 的实际发现路径是**文件系统根**（`<项目>/.dsh/skills`、`<项目>/.agents/skills`、`$DSH_HOME/skills`、`~/.agents/skills`，外加 custom 与 bundled 两类）。核实某基线是否已支持，用一次全量搜（零命中 = 未支持）：
 
 ```sh
 grep -rln "dsh\.skills" <dsh 安装>/node_modules/@deepseek-ai/ | head
 ```
 
-**分发动作**：随包分发靠**复制或链接 `skills/<name>/` 进发现根**（命令见 [install-and-verify.md](install-and-verify.md)「随包分发 skill」）；`dsh.skills` 声明可保留作前向声明（不做严格校验，无害），但安装说明**不能**只靠它。
+**分发动作**：随包分发靠**复制或链接 `skills/<name>/` 进发现根**（命令见 [10-install-and-verify.md](10-install-and-verify.md)「随包分发 skill」）；`dsh.skills` 声明可保留作前向声明（不做严格校验，无害），但安装说明**不能**只靠它。
 
 **SKILL.md 写法**（make-skill 规范）：frontmatter（`name` 1-64 小写连字符、`description` 祈使句「Use this skill when...」、可选 `metadata`/`requires`）+ 正文结构（Tool Wrapper / Generator / Reviewer / Inversion / Pipeline 模式），<500 行，细节 progressive disclosure 到 `references/`。仓库 README 用表格列 skill。
 
 ### MCP server
 
-**MCP 不是包 manifest 字段**——不存在 `dsh.mcpServers`（0.1.5-rc.2 全仓 `ts`/`json`/`md` 零命中）。现行可用形态：CLI 随附 **`@deepseek-ai/dsh-mcp-client`**，由 **patch 层的行**逐台配置服务器，把外部 MCP 工具桥接进 `ctx.tools`（名称形如 `mcp__<server>__<tool>`）；**默认不启用任何服务器**，且只桥接工具（资源与提示词不支持）。每条服务器命令都是 agent 沙箱之外的受信任可执行代码，因此由用户显式开启。
+**MCP 不是包 manifest 字段**——不存在 `dsh.mcpServers`（0.1.5-rc.2 全仓 `ts`/`json`/`md` 零命中；0.2.1-rc.1 复核：仅 `dsh-acp` 的协议类型里出现 `mcpServers`，不是 manifest 字段）。现行可用形态：CLI 随附 **`@deepseek-ai/dsh-mcp-client`**，由 **patch 层的行**逐台配置服务器，把外部 MCP 工具桥接进 `ctx.tools`（名称形如 `mcp__<server>__<tool>`）；**默认不启用任何服务器**，且只桥接工具（资源与提示词不支持）。每条服务器命令都是 agent 沙箱之外的受信任可执行代码，因此由用户显式开启。
 
 另注：Session／SDK 层确有 `mcpServers` 参数，但**非空值未实现**（会话桥以"扩大 workspace scope"为由拒绝）。配置字段以 `packages/mcp/mcp-client/README.md` 与 CLI 行为参考为准。
 
@@ -80,7 +85,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import z from '@deepseek-ai/schemastery'
 
 export const name = 'my-plugin'
-export const inject = ['httpServer', 'tools']
+export const inject = ['webServer', 'tools']
 /** 可选：声明设置面——条目 id 即设置命名空间；live 字段标 .volatile()。 */
 export const Config = z.object({ myFlag: z.boolean().default(true).volatile() })
 export function apply(ctx, config) {
@@ -95,7 +100,7 @@ export function apply(ctx, config) {
 ```
 
 - 能力上限是完整 Cordis——事件（`ctx.on`）、服务（`ctx.provide`）、命令、system prompt、TUI，无需声明。
-- **依赖解析**：entry 可 import 官方包（`@deepseek-ai/*`、`cordis`），官方运行时经 profile pnpm 闭包注入（`$DSH_HOME/profiles/node_modules` 扁平 fallback）；**`dependencies`/`peerDependencies`/`devDependencies` 三处都留空**——官方包虽在公共 npm 可见，但自带整条 peer 闭包，单独安装一定失败（细节与本地 link 配方见 [gotchas.md](gotchas.md) 1）。解析可达性依赖安装位置（profile 树内可达），见 [gotchas.md](gotchas.md) 6。
+- **依赖解析**：entry 可 import 官方包（`@deepseek-ai/*`、`cordis`），官方运行时经 profile pnpm 闭包注入（`$DSH_HOME/profiles/node_modules` 扁平 fallback）；**`dependencies`/`peerDependencies`/`devDependencies` 三处都留空**——官方包虽在公共 npm 可见，但自带整条 peer 闭包，单独安装一定失败（细节与本地 link 配方见 [13-gotchas.md](13-gotchas.md) 1）。解析可达性依赖安装位置（profile 树内可达），见 [13-gotchas.md](13-gotchas.md) 6。
 - **注册是 effect**：`ctx.tools.register` 返回 disposer，用 `ctx.effect()`/`ctx.on()` 持有生命周期，disable 时清理。
 - **必须命名导出**：`name` / `inject` / `apply`（以及 `Config`）要挂在**命名导出**上，不要写成
   `export default { name, inject, apply }`——loader 的 `unwrapExports` 会取 `exports.default`
@@ -104,7 +109,7 @@ export function apply(ctx, config) {
 - **设置面靠 `Config` 导出**（可选）：只有导出 schema 的条目才有设置命名空间（= 条目 id），
   live 字段标 `.volatile()`（宿主原地提交新值、不重挂载，并发 `loader/volatile-update`）；
   插件读值走 `apply(ctx, config)` 的第二个参数。客户端把配置页注册进 Plugins 页的槽——
-  完整配方（槽选择、读写语义、验证步骤）见 [settings-panel.md](settings-panel.md)。
+  完整配方（槽选择、读写语义、验证步骤）见 [07-settings-panel.md](07-settings-panel.md)。
 
 ## client half（可选）——自渲染
 
@@ -114,11 +119,8 @@ export function apply(ctx, config) {
 
 ## 安装与验证
 
-见 [install-and-verify.md](install-and-verify.md)（区分安装通道与热更新能力，按改动面验证生效）与 [bundle-plugins.md](bundle-plugins.md)。
+见 [10-install-and-verify.md](10-install-and-verify.md)（区分安装通道与热更新能力，按改动面验证生效）与 [05-bundle-plugins.md](05-bundle-plugins.md)。
 
 ## 开发规范
 
-- **门禁**：机械检查 + 自证测试（每个门禁有非法样例测试证明会拒绝）；门禁清单在 `scripts/gates/run.mjs`，按改动面跑最窄证据
-- **决策记录**：每个非平凡改动随附决策记录（`decisions/implemented/...`）——problem → decision → alternatives → consequences
-- **生成物勿手改**：`client.js` 由构建生成（`--check` 守卫新鲜度）
-- **首次环境行为即沉淀**：宿主覆盖注入 CSS、严格注入等环境事实，第一次踩坑就写 bug-fix 决策记录标注「环境事实」
+门禁、决策记录、生成物、兼容性标注与协作约束统一见 [09-dev-conventions.md](09-dev-conventions.md)——本文件不重复。
