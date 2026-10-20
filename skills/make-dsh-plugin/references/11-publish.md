@@ -69,6 +69,39 @@
 - [ ] 仓库 description = 一句话"是什么 + 能干什么"（**无安装命令样板**）
 - [ ] 仓库 topics 至少含 `dsh-plugin` 与 `deepseek-harness`，另加 1-3 个功能词
 
+## README 首屏：图标与演示视频（0.2.1-rc.1 实测）
+
+**图标进标题**（不要单独放一行图，会和标题抢视觉）：
+
+```html
+<h1 align="center"><img src="icon.svg" width="34" height="34" valign="middle">&nbsp;my-plugin</h1>
+```
+
+用**仓库内相对路径**（就是 `dsh.icon` 那个文件），GitHub 直接渲染 SVG，不需要另传一份 PNG。
+
+**演示视频**：GitHub 的 markdown 渲染器会**剥掉 `<video>` 标签**（写 `<video src=…>` 得到空 `<p></p>`），
+只有 `user-attachments` 的 URL 会被渲染成播放器。那种 URL 只能由**上传**产生，`gh` 从 v2.99 起支持：
+
+```sh
+# 一个临时 issue 只为拿 URL（body 里引用本地文件，gh 会原地改写成上传后的 URL）
+gh issue create --repo OWNER/REPO --title "temp: media" --body '![](docs/demo.mp4)' --attach docs/demo.mp4
+gh issue view <n> --repo OWNER/REPO --json body --jq .body   # → https://github.com/user-attachments/assets/<uuid>
+gh issue delete <n> --repo OWNER/REPO --yes                  # 附件不随 issue 消失，删完 URL 仍可访问
+```
+
+拿到 URL 后**裸写一行**（不要包 `<video>`、不要写进句子，行内会退化成链接）：
+
+```md
+https://github.com/user-attachments/assets/<uuid>
+```
+
+**判据与边界**：
+- `--attach` 支持 PNG/JPEG/GIF/WebP/SVG/MP4/MOV/WebM；上限 10 MB（Free）/ 100 MB（付费）。
+- `--attach` **只存在于 issue / PR 的 create / edit / comment**，**没有 discussions**；讨论帖里只能粘已上传的裸 URL。
+- 视频比 GIF 小得多（26 秒 1280px 录屏：mp4 914 KB，同尺寸 GIF 2 MB）——**优先 mp4**，GIF 只在本机装不了 gh 时兜底。
+- `curl -I` 该 URL 应看到 `302 → …s3.amazonaws.com/….mp4`；直接用 `/markdown` API 渲染一次，确认出的是
+  `<details … device-camera-video>` 而不是 `<a>`。
+
 ## 发布之后：被看见（可选）
 
 想去插件市场或社区曝光：见 [12-ecosystem.md](12-ecosystem.md)——市场索引机制、社区入口、社区目录与工具都在那里。**本页只管"发得对"，不管"发到哪"。**

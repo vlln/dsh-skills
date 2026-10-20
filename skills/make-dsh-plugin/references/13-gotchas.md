@@ -30,6 +30,7 @@
 | 按钮跑到了会话标题旁边 / 塞不进右上角 `···` 菜单 | §15 |
 | 设置卡写了但 Plugins 页上不出现 | §16 |
 | 界面上出现 `blocked`、`summary` 这类字面量 | §17 |
+| README 里视频不出来 / `<video>` 渲染成空白 | §18 |
 
 ## 1. 官方包在 npm 可见，但不能单独安装
 
@@ -307,3 +308,24 @@ scoped 包（`@scope/name`）下两者必然不同名，别为了"同名"去改�
 `tr('blocked', '中文兜底')` 这种"有兜底"的写法**永远不会走兜底**。
 
 **纪律**：新增键必须同时补 `zh` 与 `en`；要兜底就自己判 `t(key) === key`。
+
+## 18. README 里的视频：`<video>` 会被剥掉，只有 `user-attachments` 出播放器（0.2.1-rc.1）
+
+**症状**：README 写了 `<video src="docs/demo.mp4" controls>`，页面上什么都没有（HTML 里是空 `<p>`）；
+换成 `<video src="https://…/user-attachments/assets/…">` 也只是个链接。
+
+**原因**：GitHub 的 markdown 渲染器直接过滤 `<video>` / `<iframe>`。播放器只对**上传产生的**
+`user-attachments` 资源生效——渲染结果是 `<details … device-camera-video>` + `<gh:secured-asset-reference>`。
+
+**怎么造那个 URL**：`gh` ≥ 2.99 的 `--attach`（只挂在 issue / PR 的 create / edit / comment 上，**没有 discussions**）：
+
+```sh
+gh issue create --repo OWNER/REPO --title "temp: media" --body '![](docs/demo.mp4)' --attach docs/demo.mp4
+gh issue view <n> --repo OWNER/REPO --json body --jq .body    # 拿 URL
+gh issue delete <n> --repo OWNER/REPO --yes                   # 附件不随 issue 删除，URL 仍 302
+```
+
+然后把 URL **裸写一行**（别包标签、别放句子里，行内会退化成链接）。
+
+**判据**：`curl -I <url>` 应 302 到 `….s3.amazonaws.com/….mp4`；再用 `/markdown` API 渲染一次确认出的是
+播放器组件而不是 `<a>`。完整流程与大小上限见 [11-publish.md](11-publish.md)「README 首屏」。

@@ -11,7 +11,7 @@ description: >
 license: MIT
 metadata:
   author: vlln
-  version: "5.2.0"
+  version: "5.3.0"
 requires:
   bins:
     - dsh

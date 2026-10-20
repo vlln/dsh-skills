@@ -16,7 +16,8 @@ README 模板（发布前删除本段注释）
 <!-- 可选：社媒预览图 / hero，放在标题上方 -->
 ![{插件名}](docs/social-preview.png)
 
-<h1 align="center">{插件名}</h1>
+<!-- 图标进标题：用仓库里那个 icon.svg（相对路径），尺寸 32–36，valign 才有基线对齐 -->
+<h1 align="center"><img src="icon.svg" width="34" height="34" valign="middle">&nbsp;{插件名}</h1>
 
 <!-- 可选：语言切换 -->
 [English](README.md) | [中文](README.zh.md)
@@ -32,6 +33,11 @@ README 模板（发布前删除本段注释）
 [![dshfind](https://dshfind.com/api/badge/{owner}/{repo})](https://dshfind.com/en/plugins/{owner}/{repo})
 
 **{一句话价值主张：它是什么 + 用户拿到什么好处}。**
+
+<!-- 可选：演示视频。不要写 <video>（会被剥掉）；上传后的 user-attachments URL 裸写一行才是播放器。
+     生成方式：gh issue comment <n> --body '![](demo.mp4)' --attach demo.mp4（gh ≥ 2.99），
+     拿到 https://github.com/user-attachments/assets/<uuid> 后删掉那条临时评论即可。 -->
+https://github.com/user-attachments/assets/{uuid}
 
 <!-- 可选：真实的社会证明，没有就别写 -->
 > 被 {谁} 推荐 / 在 {场景} 里被使用——链接。
