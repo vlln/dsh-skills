@@ -5,7 +5,9 @@ README 模板（发布前删除本段注释）
 1. 先决定要哪些块：hero 图 / 多语言 / 徽章 / 截图 / 逐面详解 / 安全 / 宿主矩阵 /
    卸载 / AI 助手安装块。用不上的整块删掉，不要留空标题。
 2. 把所有 {…} 换成真实内容，发布前全文搜一遍 `{`。
-3. 安装命令必须能直接复制执行；零依赖包只给 git 源。
+3. 安装命令必须能直接复制执行；零依赖包只给 git 源。**未发布到 npm 时，安装命令写 git 源**
+   （`dsh plugin --profile web add github:{owner}/{repo}`）并删掉 npm 徽章——不要写一个用户装不上的包名，
+   也不要让用户自己 `pnpm pack` 出 tarball。
 4. 生效条件（重启 / 刷新 / 无需）按目标环境实测写，不默认加。
 5. 全文目标 ≤ 200 行；工程备忘录放 AGENTS.local.md 或 docs/engineering-notes.md。
 6. 双语：另建 README.zh.md / README.en.md，顶部互链。
@@ -22,7 +24,7 @@ README 模板（发布前删除本段注释）
 <!-- 可选：语言切换 -->
 [English](README.md) | [中文](README.zh.md)
 
-<!-- 核心徽章：至少留 dsh 版本 -->
+<!-- 核心徽章：至少留 dsh 版本。⚠️ 还没发布到 npm 之前不要放 npm 徽章（会渲染成 "not found"）。 -->
 [![npm](https://img.shields.io/npm/v/{package})](https://www.npmjs.com/package/{package})
 [![stars](https://img.shields.io/github/stars/{owner}/{repo}?style=flat)](https://github.com/{owner}/{repo})
 [![dsh](https://img.shields.io/badge/dsh-{0.2.0--rc.2}-blue)](https://www.deepseek.com/harness/)
@@ -51,7 +53,8 @@ https://github.com/user-attachments/assets/{uuid}
 
 ```sh
 # web（官方 dsh web）
-dsh plugin --profile web add {package}
+dsh plugin --profile web add {package}            # 已发布 npm
+dsh plugin --profile web add github:{owner}/{repo} # 未发布：git 源（产物入库时才可用）
 
 # 官方 Desktop：先用应用内 Plugins 页；或用 Desktop 自带的 dsh 命令（先完全退出应用）
 dsh plugin --profile desktop add {package}
