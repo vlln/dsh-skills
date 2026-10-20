@@ -25,10 +25,13 @@
   但 shipped web UI 里**没有消费方**（实测：全仓只在设置管线与线上 codec 之间传递）——所以
   **只声明 `Config` 不会长出任何界面**。要 UI 就必须注册卡片；否则用户只能手改 profile patch 里的
   `config:`（手写 YAML，等于没有 GUI 配置面）。
-- **四处同名**（实测：任一处漂移即卡片静默消失）：
-  `cordis.patch.yml` 的 insert 条目 id、`package.json` 的包名、Node half 的命名空间常量、
-  client half 的命名空间字面量。宿主的**设置命名空间 = 条目 id**；包名是 bundle 身份
-  （选 `plugins.bundle.config` 时它还是那个槽的 key，选 `plugins.item` 时只作卡片 id 的字面量来源）。
+- **两个身份，不要混成一个"四处同名"**（0.2.1-rc.1 实测）：
+  - **设置命名空间 = 条目 id**（`cordis.patch.yml` 的 insert id、Node half 的 `NAMESPACE`、client 的 `configForms.get(ns)` 三处必须一致）；
+  - **`plugins.bundle.config` 的 `key` = `package.json` 的包名**（页面靠它把卡片挂到包页上）。
+
+  只有包名恰好等于条目 id 时两者才重合。**scoped 包名（`@scope/name`）下必然不同**，这时
+  `key` 写包名、`whileServed([...])` / `configForms.get()` 写条目 id 即可——实测成立，
+  不必为了"同名"去改条目 id。任一处写错的表现都是**卡片静默消失**（无报错）。
 - **live 字段靠 `.volatile()`**：schema 上标了 volatile 的**叶**被宿主换成实时引用
   （`createVolatile` → 冻结对象 `{ get() }`，可以嵌在普通对象/数组里）。改值由宿主原地
   提交进运行中的 fiber、**不重挂载**，随后发 `loader/volatile-update(paths)`。
@@ -47,7 +50,7 @@
 ```js
 import z from '@deepseek-ai/schemastery'        // fork：.volatile() 与引用式校验在这里
 
-export const NAMESPACE = 'my-plugin'            // = 条目 id = 包名（四处同名）
+export const NAMESPACE = 'my-plugin'            // = 条目 id（≠ 包名时，槽的 key 用包名）
 export const DEFAULTS = Object.freeze({ myTool: true, size: 110 })
 export function buildSchema() {
   return z.object({
@@ -81,6 +84,9 @@ function readConfig(config) {
 
 - **读值必须走 `config`**：`apply(ctx, config)` 的第二个参数就是宿主校验后的条目配置，
   volatile 叶是引用；**别缓存引用本身**（引用稳定、值会变），每次要用就 `.get()` 或重读快照。
+- **改配置后必须重读，否则运行时还是旧值**：volatile 只保证"不重挂载"，插件自己要在
+  `ctx.on('loader/volatile-update')` 里把 `readConfig(config)` 重新解包一遍再交给业务对象
+  （实测：设置卡把 `provider` 从 tunnel 改成 surge，不重读的话下一次分享仍走旧通道）。
 - **schema 承担单字段约束**（min/max/default）；跨字段校验没有写时钩子（schema 上没有
   `custom()`/`validate()`），要在读值时归一化（如成对区间 min>max 交换）。
 - `inject` **不要**再声明 `settings`：那个服务在 0.2.0 已被 `SettingsForms`
@@ -151,7 +157,18 @@ export function apply(ctx) {
   引用必然不同，引用比较会把成功保存误判为失败）。
 - **快照引用稳定（React #185 血泪）**：`useSyncExternalStore` 要求内容未变时返回同一对象；
   `getSnapshot` 每次新造对象 → 无限重渲 → 控制台 `Minified React error #185`。
-  实测模式：草稿对象每次变更整体替换（引用即失效信号）+ scope 快照引用做缓存键。
+  实测模式：草稿对象每次变更整体替换（引用即失效信号）+ **按 `scope.getSnapshot()` 返回的对象身份缓存**
+  派生状态（宿主每次变更替换快照对象，同一快照复用同一派生对象）：
+
+  ```js
+  let cache
+  const getSnapshot = () => {
+    const snap = scope.getSnapshot()
+    if (cache !== undefined && cache.snap === snap) return cache.state
+    cache = { snap, state: deriveState(snap) }
+    return cache.state
+  }
+  ```
 
 ## 5. 验证（可复制）
 

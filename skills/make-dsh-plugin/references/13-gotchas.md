@@ -26,6 +26,10 @@
 | `/` 菜单里自己的命令没有图标 | §13 |
 | 仓库里是 `.dsh-plugin` / `dsh-repository-plugin` | §1a |
 | 从 ≤0.1.5 升级到 0.2.x | §8 |
+| 插件条目不激活：`parameters must be an object of value schemas` | §14 |
+| 按钮跑到了会话标题旁边 / 塞不进右上角 `···` 菜单 | §15 |
+| 设置卡写了但 Plugins 页上不出现 | §16 |
+| 界面上出现 `blocked`、`summary` 这类字面量 | §17 |
 
 ## 1. 官方包在 npm 可见，但不能单独安装
 
@@ -236,3 +240,70 @@ slot entry crashed in '<slot 名>' + Minified React error #130
 **两条可行路**：① 接受官方回退外观（裸 name + description，无图标、无本地化标题）；② 要行外观就把命令做成**客户端自有贡献**（`ctx.commandUi.register({ …, label, icon })`，失去带参形式与宿主生命周期记账），或在 `commandUi.candidates` 出口**只贴自己那一行**的 `label` + `icon`——注意 `candidates` 在 0.2.1 的类型里是 **private**，这是登记在案的越界，必须按 [06-ui-style.md](06-ui-style.md) §10.7 的自降级包装写法（服务缺席/改名时静默回落），参考 `vlln/dsh-loop` 的 `installCommandRowFace`。**只贴 icon 不贴 label** 是常见漏项：行标题仍是裸命令名。
 
 **贴面只修显示，不修搜索**：`rankByName` 在 `candidates` 内部、贴面之前运行；贴出来的 `label` 不参与查询，`/循环` 这类只命中 label 的查询仍为空。要让本地化标题可搜，只能用客户端自有贡献/源。
+
+## 14. `defineTool.parameters` 是「属性名 → 值 schema」的普通对象（0.2.1-rc.1）
+
+**症状**：插件装上了但整个条目**不激活**，boot 日志一行：
+
+```
+dsh-share-link (@vlln/dsh-share-link): JsonSchemaError: unsupported JSON schema: parameters must be an object of value schemas
+```
+
+**原因**：`defineTool({ parameters })` 要的是 JSON-Schema 形状的**属性映射**，不是 schemastery 对象。
+传 `Schema.object({...})` 会得到 `{ type: 'object', properties: {...} }`，被当成"某个参数的值 schema"，
+编译器要求每个 value 都是值 schema 时直接抛错。
+
+```js
+// ✅
+parameters: {
+  path: { type: 'string', required: true, description: '…' },
+  ttl_hours: { type: 'number', description: '…' },
+}
+// ❌ 整个条目不激活
+parameters: Schema.object({ path: Schema.string() })
+```
+
+空参数写 `{}`。`Config`（设置命名空间）仍然用 schemastery，两者不是一个东西。
+
+**判据**：`boot` 里出现 `did not activate` 就先把 `parameters` 换回属性映射再猜别的。
+
+## 15. 会话 header：`.actions` 在标题旁，`.utilities` 才是右上角；而且**没有菜单项插槽**（0.2.1-rc.1）
+
+**症状 A**：插件注册进 `conversation.session.header.actions`，按钮却出现在**会话标题右边**
+（`titleRow → titleCluster` 里），而不是右上角那一排。
+**症状 B**：想把功能塞进右上角 `···` 菜单，翻遍 slot 名找不到入口。
+
+实测布局：
+
+| 槽 | 实际位置 |
+|---|---|
+| `conversation.session.header.actions` | 标题集群内（跟着标题走） |
+| `conversation.session.header.utilities` | 右上角：token 徽章、`···` 菜单、自定义图标 |
+
+`···` 菜单本身由 `dsh-session-log-export` **自渲染**（`Download session log` / `Feedback`），
+宿主只给了 `sidebar.*.menu.item`，**没有**会话 header 的菜单项槽。
+
+**能接受的做法**：在 `header.utilities` 注册自己的图标（兜底入口），再用 MutationObserver 在
+`[data-slot="conversation.session.header.utilities"] [role="menu"]` 出现时**克隆一个既有菜单项**
+改文案/图标——克隆能拿到完全一致的内边距、hover 与焦点样式，不用猜 hash class。要点：
+守卫（已注入就不再注入，避免自触发循环）、跟随宿主语言、点击后先 `Escape` 关菜单再开自己的对话框、
+**失效必须静默降级**（按钮兜底仍在）。
+
+**判据**：这是版本敏感的做法，跨 rc 先看菜单 DOM 是否还是 `role="menu" + role="menuitem"` 结构。
+
+## 16. `plugins.bundle.config` 的 `key` ≠ 设置命名空间（0.2.1-rc.1）
+
+**症状**：卡片代码跑了、`whileServed` 也进了，Plugins 页上就是不出现，**没有任何报错**。
+
+`key` 要等于 **`package.json` 的包名**；`configForms.get(ns)` / `whileServed([ns])` 用的是**条目 id**。
+scoped 包（`@scope/name`）下两者必然不同名，别为了"同名"去改条目 id。细节见
+[07-settings-panel.md](07-settings-panel.md) §1 与 §3。
+
+## 17. 客户端字典缺键时 `t(key)` 返回**键本身**（0.2.1-rc.1）
+
+**症状**：英文界面里按钮显示 `blocked`、卡片副标题显示 `summary`——不是报错，是缺键。
+
+`ctx.locale` 的 `t()` 找不到键时回落成键字符串，不是 `undefined`，所以
+`tr('blocked', '中文兜底')` 这种"有兜底"的写法**永远不会走兜底**。
+
+**纪律**：新增键必须同时补 `zh` 与 `en`；要兜底就自己判 `t(key) === key`。
