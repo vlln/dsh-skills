@@ -601,7 +601,7 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
 #### projectUserText ｜ 已发送用户文本的内联投影（user-text.tsx）
 - 签名：`projectUserText(text, sessionLabels: readonly string[], slashNames: readonly string[] = [], slashKind: 'skill'|'command' = 'skill', references?: UserTextReferences): ReactNode`
 - `UserTextReferences = { openFile(path); openSkill(name) }`；只有 file 引用且提供了 `references` 时才渲染 `<button>`，skill 引用仅在 `slashKind='skill'` 时可点，session/command token 永不是按钮
-- 装饰四来源（按优先级）：线协议 `@[label](dsh-session:…)` 折成 label；相邻 recall 给的精确会话 label 装饰其裸 `@label`；按形状匹配的裸 `@name`；仅调用方点名的 `/name`
+- 装饰四来源（按优先级）：线协议 `@[label]` 紧跟 `(dsh-session:…)`（两段连写）折成 label；相邻 recall 给的精确会话 label 装饰其裸 `@label`；按形状匹配的裸 `@name`；仅调用方点名的 `/name`
 - 边界规则：`@name` 去掉句末标点 `[.,;:!?，。；：！？]`；`/` token 以空白为界，故 `/123`、`/nfs-hg/xxx`、`/plan。` 保持纯文本；`label.length<=1` 跳过
 - 结构/token：chip `display:inline`（**非 inline-flex**，否则 flex 基线会让 label 高约 3px）、`margin:0 2px`、`font-weight:500`、`overflow-wrap:anywhere`；色 `--dsw-alias-state-business-primary`；`/` chip 用 `--dsw-font-markdown-code-font-family`；图标 `ReferenceIconRegular size=16`，尺寸 `1em` + `vertical-align:-0.125em`
 #### PluginArtwork* ｜ 固定调色板插件插画（36×36）
