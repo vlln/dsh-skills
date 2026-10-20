@@ -1,6 +1,6 @@
 # 安装与验证详情
 
-> **本文件回答**：安装通道、按改动面验证、负控、图标验收、排查顺序。**不回答**：发布与推广（→ 11 / 12）、纪律清单（→ 09）。
+> **本文件回答**：安装通道、按改动面验证、**本地开发实例**（独立进程 / 随机端口 / 用户手动验收）、负控、图标验收、排查顺序。**不回答**：发布与推广（→ 11 / 12）、纪律清单（→ 09）。
 
 **来源**：本 skill 的**验证纪律**（负控、按改动面取最窄证据）＋ 对官方 `apps/cli/reference/README.md`
 （安装 / 层栈行为）与 `dsh-hmr` / `dsh-plugin-manager` / `cordis-plugin-loader` 的实测核查；
@@ -101,6 +101,68 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 3. **mock ctx 单测不能替代真实装载**。手写 mock 不施加 cordis 的严格注入门禁，所以"`apply()` 里注册了 N 个工具"的测试**照不出**缺 `inject` 的启动即崩。单测证明"逻辑对"，真实 profile 启动证明"装得上、起得来"——两者都要，不能互相代替。
 
 验证环境用**安装版 dsh**（`npm i @deepseek-ai/dsh@<rc>`）与隔离 `DSH_HOME`——直接跑源码 checkout 会因官方包镜像不完整而整树失败，见 [13-gotchas.md](13-gotchas.md) 9。
+
+## 本地开发实例（开发中与每次改动后的标准动作）
+
+**用户手动测试才是验收**：开发过程中每做完一块，以及功能完成后增加 / 修改功能，都起一个**独立实例**，
+把 URL 与测试点交给用户亲手点一遍。agent 自己"跑通了"只是必要不充分——**URL 能打开 ≠ 插件在**：
+插件解析失败时宿主照常起来、界面看起来完全正常，只有日志里两行字（见下面实测症状）。
+
+**三件事**：独立 `DSH_HOME`、随机端口、独立进程。
+
+```sh
+# 1) 默认给本次开发新建一个 home——不要用 ~/.dsh
+# 2) 把正在开发的包装进去：本地目录走 link，改源码不用重装
+DSH_HOME=/tmp/dsh-dev-<任务名>-home dsh plugin --profile web add /abs/path/to/my-plugin
+
+# 3) 起实例：--port 0 由 OS 挑空闲端口，启动行打印带 token 的 URL
+#    用你所在 harness 的后台任务机制跑（或 nohup … &），日志留文件好取 URL、好查错
+DSH_HOME=/tmp/dsh-dev-<任务名>-home nohup dsh web --port 0 > /tmp/dsh-dev-<任务名>.log 2>&1 &
+sleep 8; grep -Eo 'http://127\.0\.0\.1:[0-9]+/\?token=[A-Za-z0-9_-]+' /tmp/dsh-dev-<任务名>.log
+```
+
+每条命令带**同一个** `DSH_HOME`（同一 shell 里也可以先 `export`）。URL 形如
+`http://127.0.0.1:<随机端口>/?token=<…>`（实测 0.2.1-rc.1）——端口随机，**从日志取实际值**，
+不要猜、也不要在文档里写死。默认会打开本机浏览器，方便用户直接看；远程 / 无人值守加 `--no-open`。
+
+**本地目录（link）的前置条件**：link 的真实路径在 profile 树外，官方包得从插件自己的
+`node_modules` 解析（[13-gotchas.md](13-gotchas.md) 1、6）：
+
+```sh
+DSH_PKG="$(dirname "$(dirname "$(readlink -f "$(command -v dsh)")")")"   # …/@deepseek-ai/dsh
+mkdir -p node_modules
+ln -sfn "$DSH_PKG/node_modules/@deepseek-ai" node_modules/@deepseek-ai
+ln -sfn "$DSH_PKG/node_modules/@deepseek-ai/cordis" node_modules/cordis
+```
+
+漏了这一步的实测症状（0.2.1-rc.1）：**实例照常起来、URL 照常能开**，插件功能与 UI 一起消失，
+日志里只有 `failed to import ... Cannot find package 'cordis'` + `warning: 1 entry did not activate`。
+`node_modules/@deepseek-ai` 已是真实目录时，按第 1 条逐个包 link。纯 cordis 形态还要在**这个隔离 home**
+的 profile `cordis.patch.yml` 里写 insert 行（见「纯 cordis 插件安装」）。
+
+**是否复用已有 dsh-home**：
+
+| 场景 | 做法 |
+|---|---|
+| 普通开发、加功能、修 bug | **新建**独立 home（默认；设置与数据都是空的，要重配一遍） |
+| 现象依赖真实配置 / 会话 / 存储 | **复制**一份再用：`cp -a ~/.dsh /tmp/dsh-dev-<任务名>-home`（或只拷 `profiles/`、`data/`）——不要直接改真实 home |
+| 用户要在自己环境里看 | 让用户自己装 / 起；agent 不在真实 `~/.dsh` 里试错——半成品会留在用户 profile 里 |
+
+**每轮改动的循环**：改源码 →（有 client half）重建产物 → **重启这个 dev 实例**（Node half 默认没有
+源码 watcher；"重装同版本"不是热更新，见「验证按改动面」表）→ 刷新页面 → 把本轮 URL 与测试点再发给用户。
+同一时刻只给用户**一个**地址；**用户正在测的时候不要重启 / 换实例**（会打断他、丢失会话状态）。
+
+**交接前自检**（否则用户看到的是一个"正常但没有插件"的界面）：
+
+- 启动日志无 `failed to import` / `did not activate`；Plugins 页能看到本插件；
+- 挂的是**正在开发的这份源码**（`readlink "$DSH_HOME/profiles/web/node_modules/<包名>"` 指向开发目录，
+  不是旧副本 / 另一个 checkout）；
+- 真调过一次工具 / 命令（不是只看了首页）；
+- 消息里给全：URL（含 token）、**这是隔离实例**（空会话、不碰真实数据）、要测的 3–5 个点、怎么停。
+
+**端口与进程纪律**：不要结束用户正在用的 dsh Web GUI（默认 `3080`），也不要泛模式 `pkill`；替换实例前
+按端口确认进程归属（`lsof -nP -iTCP:<port> -sTCP:LISTEN`）再结束旧的。任务结束后实例与 `<home>`
+可以留到用户确认为止，确认完再清理。
 
 ## 随包分发 skill（走文件系统发现根）
 

@@ -11,7 +11,7 @@ description: >
 license: MIT
 metadata:
   author: vlln
-  version: "5.0.0"
+  version: "5.1.0"
 requires:
   bins:
     - dsh
@@ -93,7 +93,7 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 06 | [ui-style](references/06-ui-style.md) * | token / 控件 / 落位 / 视觉自检 | 设置面 → 07；文案 → 08 |
 | 07 | [settings-panel](references/07-settings-panel.md) | `Config` + 配置卡片契约与验证 | UI 视觉 → 06；字典 → 08 |
 | 08 | [i18n](references/08-i18n.md) | 客户端字典 / 包元数据 / 宿主文案 | 设置面 → 07 |
-| 09 | [dev-conventions](references/09-dev-conventions.md) | 10 条纪律 + 门禁 / 决策 / 兼容性 | 证据 → 13；操作 → 10 |
+| 09 | [dev-conventions](references/09-dev-conventions.md) | 11 条纪律 + 门禁 / 决策 / 兼容性 | 证据 → 13；操作 → 10 |
 | 10 | [install-and-verify](references/10-install-and-verify.md) | 安装、验证、负控、图标验收、排查 | 发布 → 11；纪律 → 09 |
 | 11 | [publish](references/11-publish.md) | 交付清单、description / topics | 市场社区 → 12；验证 → 10 |
 | 12 | [ecosystem](references/12-ecosystem.md) | 市场索引机制、社区入口、生态目录与工具、参考实现 | 发布纪律 → 11 |
@@ -114,7 +114,7 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 5b 交付发布 | 11（+12 推广） | 清单过 + 发布 |
 | 6 README / 规范 | 09（+11） | README + 门禁 |
 
-## 4. 纪律（10 条，动手前扫一眼）
+## 4. 纪律（11 条，动手前扫一眼）
 
 逐条有反例与细节指针（[09-dev-conventions.md](references/09-dev-conventions.md)）；违反其中任何一条
 都会在真实装载时暴露，且大多**不会在 mock 单测里暴露**。
@@ -131,6 +131,7 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 8 | 资产从安装包解析，不读 profile / preset 目录 | preset 没有自己的目录（[02-profile-and-preset.md](references/02-profile-and-preset.md) §2.6） |
 | 9 | 机制带版本号；渠道 / 社区 / 生态现状**只进 12**（时效数据），并写"是什么/怎么用"而不是"最新/N 个" | 无日期的时效断言会烂掉；实测记录不会 |
 | 10 | README 只写使用者内容；工程备忘录进 `AGENTS.local.md` / `docs/` | 读者不对，关键信息会被淹掉（Step 6） |
+| 11 | 开发中与每次功能改动后都起**独立实例**（随机端口 + 默认新建 `DSH_HOME`），URL + 测试点交给**用户手动测试** | 用户手动点是唯一验收；复用用户 GUI / 真实 `~/.dsh` 会污染真实数据、把半成品留在用户 profile 里（[10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」） |
 
 ## 何时使用
 
@@ -293,8 +294,11 @@ key = 包名）；live 字段标 `.volatile()`，保存即生效、不重挂载�
   ③ npm 预构建 ④ `pnpm pack` 出的 tarball（`dsh plugin --profile web add ./x-0.1.0.tgz`）。
   ②的授权语义是**允许该包在安装时于用户机器上执行代码**（不在 agent 沙箱内）——安装说明里要写明并建议钉 commit。
 
-**写安装说明时必须给出用户可直接复制的命令**；验证按改动面（哪些需重启
-web vs 只刷新）与挂载失败排查见 `references/10-install-and-verify.md`。
+**写安装说明时必须给出用户可直接复制的命令**；验证按改动面与挂载失败排查见 `references/10-install-and-verify.md`。
+
+**开发与每次改动后都起独立实例验证**（用户 2026-10 定调）：新 `DSH_HOME`（默认不碰 `~/.dsh`）
++ `dsh web --port 0`，URL 与测试点交给**用户手动测试**——不复用用户 GUI（默认 3080）与真实
+`~/.dsh`；交接前先确认插件真挂上了（**URL 能打开 ≠ 插件在**，见 [10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」）。
 
 **三条硬规矩**（该文件详述，这里先记住结论）：
 
@@ -305,9 +309,7 @@ web vs 只刷新）与挂载失败排查见 `references/10-install-and-verify.md
 3. **mock ctx 单测不能替代真实装载**——它不施加严格注入门禁，缺 `inject` 的启动即崩
    照不出来。
 
-**零依赖包的安装说明只给 git 源**：本地目录装的包落在 profile 树外时官方包解析不到，
-会拖垮整个 profile 启动（[13-gotchas.md](references/13-gotchas.md) 6）；本地目录安装只用于开发自测，
-且要先 link SDK。
+**零依赖包的安装说明只给 git 源**：本地目录装在 profile 树外解析不到官方包（[13-gotchas.md](references/13-gotchas.md) 6），只用于开发自测且要先 link SDK。
 
 ## Step 5b：交付检查与发布
 
@@ -316,7 +318,7 @@ web vs 只刷新）与挂载失败排查见 `references/10-install-and-verify.md
 - [ ] 入口 / `dsh.bundle.patch` / insert 行与包名同源；依赖三字段为空
 - [ ] 图标已绘制并**实际看过**渲染结果（Step 2b）
 - [ ] 带 UI 时过了 [06-ui-style.md](references/06-ui-style.md) 的交付前视觉自检
-- [ ] 安装冒烟含一次**真实工具/命令调用**，且做过负控
+- [ ] 安装冒烟含一次**真实工具/命令调用**，且做过负控；改动已在**独立实例**（新 `DSH_HOME` + `--port 0`）里跑过，URL + 测试点已交给用户手动测试
 - [ ] README 只含使用者内容 + `## 兼容性` 节 + `## 插件管理` 节
 
 完整清单与公开发布（description / topics）见 [11-publish.md](references/11-publish.md)；

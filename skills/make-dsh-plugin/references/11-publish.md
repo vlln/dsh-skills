@@ -22,6 +22,8 @@
       `AGENTS.local.md`、代码注释或 `docs/engineering-notes.md`，README 只留一句指针
 - [ ] **安装冒烟含一次真实工具/命令调用**（boot 干净 ≠ 功能可用），且做过负控
       （[10-install-and-verify.md](10-install-and-verify.md)「三条硬规矩」）
+- [ ] 改动在**独立实例**（新 `DSH_HOME` + `dsh web --port 0`）里跑过，URL + 测试点已交给用户手动测试
+      （[10-install-and-verify.md](10-install-and-verify.md)「本地开发实例」）
 
 ## 公开发布（可选）
 

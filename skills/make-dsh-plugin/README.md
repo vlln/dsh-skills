@@ -4,7 +4,7 @@
 
 ## 结构纪律
 
-- `SKILL.md` 只做入口：30 秒版概念 → 路线选择 → 边界地图 → Step→文件 → 10 条纪律。**不堆细节**。
+- `SKILL.md` 只做入口：30 秒版概念 → 路线选择 → 边界地图 → Step→文件 → 11 条纪律。**不堆细节**。
 - `references/` 用两位序号命名，序号就是目录顺序（01 概念 → 13 证据池 → 14 Desktop），但**不要求线性阅读**：每个文件在开头自报「本文件回答 / 不回答 → 去」。agent 按问题取一篇，不按顺序读。
 - **一个事实一个家**：概念在 01、装配机制在 02、契约在 04/05、纪律在 09、验证在 10、发布在 11、生态与时效数据在 12、证据在 13。别处只放指针。
 - 每个 reference 必须有一行「来源」（官方路径 / 实测基线 / 本 skill 自定），口径与 `SKILL.md` 的「溯源」一致。
@@ -41,6 +41,8 @@ curl -sSI --noproxy '*' https://dshmarket.com/index.json  # 逐个入口查 2xx
 **0.2.1-rc.1 已确认**：`webServer`（`httpServer` 已不存在）；`settings.describe()` 的 `value` / `user` / `revision` 字段；`agentPresets`、`uiWorkspace.openSession`、`commandUi`、`configForms`；`ctx.locale` 的 `register` / `addLanguage` / `bind` / `resolveText` / `getSnapshot`；manifest 的 `icon`（≤ 256 KiB，SVG/PNG/JPEG/WebP）、`dsh.bundle.patch` 数组、`dsh.client.{platform,inject,external,immediately}`、`manifestVersion: 1`；CLI 的 `--from-default-profile` / `--dump-config-schema` / `--no-open`；市场 bundle `@deepseek-ai/dsh-experimental-plugin-market-bundle`；`HOST_FACES`、`data-width-handle`、`staticModules`（0.2.1 的类型名，0.2.0 叫 `getStaticModules()`）；`dsh.skills` 无消费方、`dsh.mcpServers` 不是 manifest 字段；06 的 token 名称与解析值（bg/label/border/hover/menu）、圆角数值、组件名；07 的槽名与 `view: summary|page`；10 的 HMR 语义（profile 重组会替换 `node_modules`/link 里的文件变化，无需 root 监听）；`CommandDescriptor` 字段、`HOST_FACES` 六个内置 id、`commandUi` 公开方法（`register/decorate/dismiss/popupFor`，`candidates` 为 private）、v4 的 `producerKind` / `assertAssistantSettlementShape`、`jobs.list(sessionId)`、`agent/disposed { agent }`。以上均以 0.2.1 复核。
 
 **未在本机实测**：14-desktop 依据官方 `apps/desktop/README.md`（master `0.2.1-rc.2`）与共享插件管理器文档编写，未在打包版 Desktop 上逐条跑；改动 Desktop 行为时按同文件重核。
+
+**本地开发实例实测（2026-10-20，安装版 0.2.1-rc.1）**：`dsh plugin --profile web add <本地目录>` 在隔离 `DSH_HOME` 里生成 `link:` 依赖、并把 bundle 自动追加进 `dsh.profile.bundles`；`dsh web --port 0` 的启动行打印 `http://127.0.0.1:<随机端口>/?token=…`。**树外 link 的官方包解析**：插件自己 `node_modules` 没有 SDK 链接时实例照常启动、插件静默消失（日志 `failed to import … Cannot find package 'cordis'` + `warning: 1 entry did not activate`）；补上 `@deepseek-ai` 与 `cordis` 链接后正常装载、无警告。以上写入 [10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」。
 
 **仍保留 0.2.0-rc.2 标注（未按 0.2.1 重核）**：06 的组件逐条 props 与几何（槽位尺寸、间距）；07 的渲染契约细节（hooks 顺序、chrome 归属）；10 的图标验收路径细节；13 里 0.1.5 时段的实例与 0.2.0 迁移表。重核时按上面的「复核动作」逐条跑，并在本文件追加日期。
 
