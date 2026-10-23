@@ -1,6 +1,6 @@
 # 安装与验证详情
 
-> **本文件回答**：安装通道、按改动面验证、**本地开发实例**（独立进程 / 随机端口 / 用户手动验收）、负控、图标验收、排查顺序。**不回答**：发布与推广（→ 11 / 12）、纪律清单（→ 09）。
+> **本文件回答**：安装通道、按改动面验证、**本地开发实例**（独立进程 / 持久私有 home / 随机端口 / 用户手动验收）、负控、图标验收、排查顺序。**不回答**：发布与推广（→ 11 / 12）、纪律清单（→ 09）。
 
 **来源**：本 skill 的**验证纪律**（负控、按改动面取最窄证据）＋ 对官方 `apps/cli/reference/README.md`
 （安装 / 层栈行为）与 `dsh-hmr` / `dsh-plugin-manager` / `cordis-plugin-loader` 的实测核查；
@@ -108,18 +108,38 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 把 URL 与测试点交给用户亲手点一遍。agent 自己"跑通了"只是必要不充分——**URL 能打开 ≠ 插件在**：
 插件解析失败时宿主照常起来、界面看起来完全正常，只有日志里两行字（见下面实测症状）。
 
-**三件事**：独立 `DSH_HOME`、随机端口、独立进程。
+**三件事**：独立进程、**持久的私有 `DSH_HOME`**、随机端口。
 
 ```sh
-# 1) 默认给本次开发新建一个 home——不要用 ~/.dsh
+# 1) 私有 home：建一次，之后每次复用；不要每次新建，也绝不指向 ~/.dsh
+export DSH_HOME="$HOME/.dsh-<任务名>"
+mkdir -p "$DSH_HOME"
+
 # 2) 把正在开发的包装进去：本地目录走 link，改源码不用重装
-DSH_HOME=/tmp/dsh-dev-<任务名>-home dsh plugin --profile web add /abs/path/to/my-plugin
+dsh plugin --profile web add /abs/path/to/my-plugin
 
 # 3) 起实例：--port 0 由 OS 挑空闲端口，启动行打印带 token 的 URL
-#    用你所在 harness 的后台任务机制跑（或 nohup … &），日志留文件好取 URL、好查错
-DSH_HOME=/tmp/dsh-dev-<任务名>-home nohup dsh web --port 0 > /tmp/dsh-dev-<任务名>.log 2>&1 &
+nohup dsh web --port 0 > /tmp/dsh-dev-<任务名>.log 2>&1 &
 sleep 8; grep -Eo 'http://127\.0\.0\.1:[0-9]+/\?token=[A-Za-z0-9_-]+' /tmp/dsh-dev-<任务名>.log
 ```
+
+**为什么是持久，而不是每次新建**：会话、工作区选择、安装状态都在 `DSH_HOME` 里。每次新建 =
+用户每次回来都看不到上一次的会话（实测反馈是“你是不是把会话弄丢了”）。删 home 只发生在
+用户明确要求重置时。
+
+**为什么不能是 `~/.dsh`**：主 GUI 正在写同一个 home，两个进程往同一份会话日志追加会损坏历史
+（修法见 `dsh-session-repair` skill）。启动脚本应**结构性拒绝** `DSH_HOME == ~/.dsh`
+（解析后比较，命中直接退出），不要依赖自觉，也别读继承来的 `DSH_HOME`——一个在会话里运行的
+shell 往往已经 `export DSH_HOME=~/.dsh`，照用就会把插件装进用户主 profile。
+
+**凭据**：私有 home 首次创建时可以从 `~/.dsh` **拷一次** `.env` / `.credentials.yaml` / 模型配置，
+之后不覆盖。这是唯一允许的交叉点，且只读。
+
+**不要从受限沙盒里的 shell 启动实例**（macOS）：seatbelt 不能嵌套。启动它的 shell 若已被沙盒化，
+实例自己的 workspace-write 探测（运行时就是跑一次 `sandbox-exec -p '(version 1)(allow default)' true`）
+会失败，dsh 判定后端不可用并按失败即拒绝处理——**agent 的每条命令都要向用户申请授权**，
+现场很容易被误读成“这台机器沙盒坏了”。自检：在将要启动实例的 shell 里跑一次那条 `sandbox-exec`；
+非 0 就先换一个不被沙盒化的环境再启动。
 
 每条命令带**同一个** `DSH_HOME`（同一 shell 里也可以先 `export`）。URL 形如
 `http://127.0.0.1:<随机端口>/?token=<…>`（实测 0.2.1-rc.1）——端口随机，**从日志取实际值**，
@@ -144,8 +164,8 @@ ln -sfn "$DSH_PKG/node_modules/@deepseek-ai/cordis" node_modules/cordis
 
 | 场景 | 做法 |
 |---|---|
-| 普通开发、加功能、修 bug | **新建**独立 home（默认；设置与数据都是空的，要重配一遍） |
-| 现象依赖真实配置 / 会话 / 存储 | **复制**一份再用：`cp -a ~/.dsh /tmp/dsh-dev-<任务名>-home`（或只拷 `profiles/`、`data/`）——不要直接改真实 home |
+| 普通开发、加功能、修 bug | **复用**这个插件的私有 home（`~/.dsh-<任务名>`）；不要每次新建，否则会话全丢 |
+| 现象依赖真实配置 / 会话 / 存储 | 从 `~/.dsh` **复制一份**到私有 home 再用（`cp -a ~/.dsh "$DSH_HOME"`，或只拷 `profiles/`、`data/`）——不要直接改真实 home |
 | 用户要在自己环境里看 | 让用户自己装 / 起；agent 不在真实 `~/.dsh` 里试错——半成品会留在用户 profile 里 |
 
 **每轮改动的循环**：改源码 →（有 client half）重建产物 → **重启这个 dev 实例**（Node half 默认没有

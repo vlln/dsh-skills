@@ -93,18 +93,19 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 06 | [ui-style](references/06-ui-style.md) * | token / 控件 / 落位 / 视觉自检 | 设置面 → 07；文案 → 08 |
 | 07 | [settings-panel](references/07-settings-panel.md) | `Config` + 配置卡片契约与验证 | UI 视觉 → 06；字典 → 08 |
 | 08 | [i18n](references/08-i18n.md) | 客户端字典 / 包元数据 / 宿主文案 | 设置面 → 07 |
-| 09 | [dev-conventions](references/09-dev-conventions.md) | 11 条纪律 + 门禁 / 决策 / 兼容性 | 证据 → 13；操作 → 10 |
+| 09 | [dev-conventions](references/09-dev-conventions.md) | 12 条纪律 + 门禁 / 决策 / 兼容性 | 证据 → 13；操作 → 10 |
 | 10 | [install-and-verify](references/10-install-and-verify.md) | 安装、验证、负控、图标验收、排查 | 发布 → 11；纪律 → 09 |
 | 11 | [publish](references/11-publish.md) | 交付清单、description / topics | 市场社区 → 12；验证 → 10 |
 | 12 | [ecosystem](references/12-ecosystem.md) | 市场索引机制、社区入口、生态目录与工具、参考实现 | 发布纪律 → 11 |
 | 13 | [gotchas](references/13-gotchas.md) | 实测坑与症状 | 纪律 → 09；验证 → 10 |
 | 14 | [desktop](references/14-desktop.md) | Desktop 的安装归属 / 版本 / 调试 / 恢复 | 通用安装验证 → 10；UI → 06 |
+| 15 | [product-boundaries](references/15-product-boundaries.md) | 产品边界：数据放哪、向 agent 暴露什么、工具面还是 skill+命令、面板与会话的关系 | 字段与契约 → 04；验证 → 10 |
 
 ## 3. Step → 文件
 
 | Step | 本步只读 | 产出 |
 |---|---|---|
-| 0 选形态 | 01 / 02 | 形态 + 安装通道（三判据） |
+| 0 选形态 | 01 / 02（做内容型插件再加 15） | 形态 + 安装通道（三判据） |
 | 1 仓库布局 | 04 | 目录骨架 |
 | 2 manifest | 04（+05 打包时） | `package.json` + patch |
 | 2b 图标 | 10（图标节） | `icon.svg` + 真实加载验证 |
@@ -114,7 +115,7 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 5b 交付发布 | 11（+12 推广） | 清单过 + 发布 |
 | 6 README / 规范 | 09（+11） | README + 门禁 |
 
-## 4. 纪律（11 条，动手前扫一眼）
+## 4. 纪律（12 条，动手前扫一眼）
 
 逐条有反例与细节指针（[09-dev-conventions.md](references/09-dev-conventions.md)）；违反其中任何一条
 都会在真实装载时暴露，且大多**不会在 mock 单测里暴露**。
@@ -131,7 +132,8 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 8 | 资产从安装包解析，不读 profile / preset 目录 | preset 没有自己的目录（[02-profile-and-preset.md](references/02-profile-and-preset.md) §2.6） |
 | 9 | 机制带版本号；渠道 / 社区 / 生态现状**只进 12**（时效数据），并写"是什么/怎么用"而不是"最新/N 个" | 无日期的时效断言会烂掉；实测记录不会 |
 | 10 | README 只写使用者内容；工程备忘录进 `AGENTS.local.md` / `docs/` | 读者不对，关键信息会被淹掉（Step 6） |
-| 11 | 开发中与每次功能改动后都起**独立实例**（随机端口 + 默认新建 `DSH_HOME`），URL + 测试点交给**用户手动测试** | 用户手动点是唯一验收；复用用户 GUI / 真实 `~/.dsh` 会污染真实数据、把半成品留在用户 profile 里（[10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」） |
+| 11 | 开发实例 = 独立进程 + **持久的私有 `DSH_HOME`**（`~/.dsh-<插件>`，建一次、复用、不删）+ 随机端口；**永不指向 `~/.dsh`**；URL + 测试点交给**用户手动测试** | 每次新建 home 会丢会话（用户以为插件把历史吃掉了）；复用真实 home 会与主 GUI 抢写同一份会话日志；把半成品留在用户 profile 里（[10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」） |
+| 12 | 插件的“用户数据”不能是它自己的安装目录：数据放用户工作区，空工作区给**空状态**而不是示例片；不要把路径 / 工具链 / “不要做某事”写进提示 | 安装目录当项目 ⇒ 每个会话都看到同一部示例、agent 只能去插件目录里改代码；靠提示补漏说明设计漏了（[15-product-boundaries.md](references/15-product-boundaries.md)） |
 
 ## 何时使用
 
