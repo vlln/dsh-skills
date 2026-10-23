@@ -110,15 +110,22 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 
 **三件事**：独立进程、**持久的私有 `DSH_HOME`**、**每个插件一个固定端口**。
 
-```sh
-# 1) 私有 home：建一次，之后每次复用；不要每次新建，也绝不指向 ~/.dsh
-export DSH_HOME="$HOME/.dsh-<任务名>"
-mkdir -p "$DSH_HOME"
+| 不变量 | 做法 | 违反时的现场表现 |
+|---|---|---|
+| 进程独立 | 自己的 dsh 进程，不共用主 GUI | 半成品留在用户 profile 里 |
+| home 持久且私有 | `~/.dsh-<任务名>`，建一次、复用、**永不删**；脚本**结构性拒绝** `DSH_HOME == ~/.dsh`，也不读继承来的 `DSH_HOME` | 每次回来会话没了（用户以为插件吃了历史）；两个写者损坏同一份会话日志 |
+| 端口固定 | 只挑一次（排除 3080），存进 home 的 `web-port`，以后每次都用；被占用时报错并给 `lsof -nP -iTCP:<port> -sTCP:LISTEN`，**不许悄悄换** | 旧 URL 全部失效，用户以为进程挂了 |
+| 凭据 | 首次从 `~/.dsh` 拷一次 `.env` / `.credentials.yaml` / 模型配置，之后不覆盖 | — |
+| 启动环境 | **不要从受限沙盒里的 shell 启动**：seatbelt 不能嵌套，实例会误判 workspace-write 不可用，退化成"每条命令都要授权" | agent 频繁申请权限，被误读成沙盒坏了 |
 
-# 2) 把正在开发的包装进去：本地目录走 link，改源码不用重装
+```sh
+# 1) 私有 home：建一次，之后复用；绝不指向 ~/.dsh
+export DSH_HOME="$HOME/.dsh-<任务名>"; mkdir -p "$DSH_HOME"
+
+# 2) 装正在开发的包：本地目录走 link，改源码不用重装
 dsh plugin --profile web add /abs/path/to/my-plugin
 
-# 3) 端口：第一次挑一个空闲的（避开 3080），写进 home，此后永远复用它
+# 3) 端口：第一次挑（避开 3080），存下来，此后复用
 PORT_FILE="$DSH_HOME/web-port"
 [ -f "$PORT_FILE" ] || node -e 'const n=require("net");const s=n.createServer();s.listen(0,"127.0.0.1",()=>{const p=s.address().port;s.close(()=>console.log(p))})' > "$PORT_FILE"
 PORT="$(cat "$PORT_FILE")"
@@ -128,40 +135,9 @@ nohup dsh web --port "$PORT" > /tmp/dsh-dev-<任务名>.log 2>&1 &
 sleep 8; grep -Eo 'http://127\.0\.0\.1:[0-9]+/\?token=[A-Za-z0-9_-]+' /tmp/dsh-dev-<任务名>.log
 ```
 
-**端口为什么必须固定**：`--port 0` 每次启动都换端口，**旧 URL 全部失效**。现场表现是"你给我的地址打不开了"，
-用户会以为进程挂了或插件坏了，而实际只是换了个端口。规则：
-
-- 每个插件一个端口，**只挑一次**，存在私有 home 里（例如 `web-port`），以后每次都用它；
-- 挑的时候**排除 3080**（主 GUI）；
-- 端口被占用时**明确报错**并给出 `lsof -nP -iTCP:<port> -sTCP:LISTEN`，不要悄悄换一个——
-  悄悄换等于又变回"每次都不一样"；
-- 需要重新挑时用显式开关（`DSH_<插件>_PORT=0` 之类），不要靠删文件。
-
-**URL 里的 `token` 仍然是每次启动生成的**（web 应用只有 `--host` / `--port` / `--public-url` / `--tls-*`，
-没有固定 token 的开关）。所以"端口稳定"≠"URL 完全不变"：主机和端口稳定，`?token=` 会变。**不要把
-稳定端口说成稳定 URL**；每次启动后从日志里取当次 URL 交给用户。
-
-**为什么是持久，而不是每次新建**：会话、工作区选择、安装状态都在 `DSH_HOME` 里。每次新建 =
-用户每次回来都看不到上一次的会话（实测反馈是“你是不是把会话弄丢了”）。删 home 只发生在
-用户明确要求重置时。
-
-**为什么不能是 `~/.dsh`**：主 GUI 正在写同一个 home，两个进程往同一份会话日志追加会损坏历史
-（修法见 `dsh-session-repair` skill）。启动脚本应**结构性拒绝** `DSH_HOME == ~/.dsh`
-（解析后比较，命中直接退出），不要依赖自觉，也别读继承来的 `DSH_HOME`——一个在会话里运行的
-shell 往往已经 `export DSH_HOME=~/.dsh`，照用就会把插件装进用户主 profile。
-
-**凭据**：私有 home 首次创建时可以从 `~/.dsh` **拷一次** `.env` / `.credentials.yaml` / 模型配置，
-之后不覆盖。这是唯一允许的交叉点，且只读。
-
-**不要从受限沙盒里的 shell 启动实例**（macOS）：seatbelt 不能嵌套。启动它的 shell 若已被沙盒化，
-实例自己的 workspace-write 探测（运行时就是跑一次 `sandbox-exec -p '(version 1)(allow default)' true`）
-会失败，dsh 判定后端不可用并按失败即拒绝处理——**agent 的每条命令都要向用户申请授权**，
-现场很容易被误读成“这台机器沙盒坏了”。自检：在将要启动实例的 shell 里跑一次那条 `sandbox-exec`；
-非 0 就先换一个不被沙盒化的环境再启动。
-
-每条命令带**同一个** `DSH_HOME`（同一 shell 里也可以先 `export`）。URL 形如
-`http://127.0.0.1:<固定端口>/?token=<…>`（实测 0.2.1-rc.1）——端口固定，**从日志取当次 token**，
-不要猜、也不要在文档里写死。默认会打开本机浏览器，方便用户直接看；远程 / 无人值守加 `--no-open`。
+URL 里的 `token` **每次启动重新生成**（web 应用只有 `--host` / `--port` / `--public-url` / `--tls-*`），
+所以端口稳定 ≠ URL 不变：每次从日志取当次 URL 交给用户，不要承诺固定地址。默认会打开本机浏览器；
+远程 / 无人值守加 `--no-open`。
 
 **本地目录（link）的前置条件**：link 的真实路径在 profile 树外，官方包得从插件自己的
 `node_modules` 解析（[13-gotchas.md](13-gotchas.md) 1、6）：
@@ -178,13 +154,8 @@ ln -sfn "$DSH_PKG/node_modules/@deepseek-ai/cordis" node_modules/cordis
 `node_modules/@deepseek-ai` 已是真实目录时，按第 1 条逐个包 link。纯 cordis 形态还要在**这个隔离 home**
 的 profile `cordis.patch.yml` 里写 insert 行（见「纯 cordis 插件安装」）。
 
-**是否复用已有 dsh-home**：
-
-| 场景 | 做法 |
-|---|---|
-| 普通开发、加功能、修 bug | **复用**这个插件的私有 home（`~/.dsh-<任务名>`）；不要每次新建，否则会话全丢 |
-| 现象依赖真实配置 / 会话 / 存储 | 从 `~/.dsh` **复制一份**到私有 home 再用（`cp -a ~/.dsh "$DSH_HOME"`，或只拷 `profiles/`、`data/`）——不要直接改真实 home |
-| 用户要在自己环境里看 | 让用户自己装 / 起；agent 不在真实 `~/.dsh` 里试错——半成品会留在用户 profile 里 |
+**两个例外**（其余情况一律复用私有 home）：现象依赖真实配置 / 会话时，从 `~/.dsh` **复制一份**
+到私有 home（`cp -a`，或只拷 `profiles/`、`data/`）；用户要在自己环境里看时，让用户自己装 / 起。
 
 **每轮改动的循环**：改源码 →（有 client half）重建产物 → **重启这个 dev 实例**（Node half 默认没有
 源码 watcher；"重装同版本"不是热更新，见「验证按改动面」表）→ 刷新页面 → 把本轮 URL 与测试点再发给用户。
@@ -196,6 +167,7 @@ ln -sfn "$DSH_PKG/node_modules/@deepseek-ai/cordis" node_modules/cordis
 - 挂的是**正在开发的这份源码**（`readlink "$DSH_HOME/profiles/web/node_modules/<包名>"` 指向开发目录，
   不是旧副本 / 另一个 checkout）；
 - 真调过一次工具 / 命令（不是只看了首页）；
+- **端口和上次一样**（变了就是没固定住，用户手上那个地址已经失效）；
 - 消息里给全：URL（含 token）、**这是隔离实例**（空会话、不碰真实数据）、要测的 3–5 个点、怎么停。
 
 **端口与进程纪律**：固定端口见上；不要结束用户正在用的 dsh Web GUI（默认 `3080`），也不要泛模式 `pkill`；替换实例前

@@ -89,11 +89,8 @@
 从**受限沙盒里的 shell** 启动实例 → 它自己的 workspace-write 探测被嵌套沙盒挡住 →
 判定“后端不可用” → agent 每条命令都要求授权，被误读成“这台机器沙盒坏了”。
 
-**规则**：见 [10-install-and-verify.md](10-install-and-verify.md)「本地开发实例」——
-独立进程 + **持久私有 home**（建一次、复用、不删）+ **固定端口**（只挑一次、存进 home、避开 3080）；永不指向 `~/.dsh`；
-凭据可以**拷一次**；**不要从沙盒化的 shell 启动实例**（先确认 `sandbox-exec -p '(version 1)(allow default)' true` 能跑通）。
-
----
+**规则**：验证实例的进程 / home / 端口 / 凭据 / 启动环境，全部在
+[10-install-and-verify.md](10-install-and-verify.md)「本地开发实例」一处写清，不要在这里重复。
 
 ## 一页速查
 
