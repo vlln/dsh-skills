@@ -42,7 +42,7 @@ curl -sSI --noproxy '*' https://dshmarket.com/index.json  # 逐个入口查 2xx
 
 **未在本机实测**：14-desktop 依据官方 `apps/desktop/README.md`（master `0.2.1-rc.2`）与共享插件管理器文档编写，未在打包版 Desktop 上逐条跑；改动 Desktop 行为时按同文件重核。
 
-**本地开发实例实测（2026-10-20，安装版 0.2.1-rc.1）**：`dsh plugin --profile web add <本地目录>` 在隔离 `DSH_HOME` 里生成 `link:` 依赖、并把 bundle 自动追加进 `dsh.profile.bundles`；`dsh web --port 0` 的启动行打印 `http://127.0.0.1:<随机端口>/?token=…`。**树外 link 的官方包解析**：插件自己 `node_modules` 没有 SDK 链接时实例照常启动、插件静默消失（日志 `failed to import … Cannot find package 'cordis'` + `warning: 1 entry did not activate`）；补上 `@deepseek-ai` 与 `cordis` 链接后正常装载、无警告。以上写入 [10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」。
+**本地开发实例实测（2026-10-20，安装版 0.2.1-rc.1）**：`dsh plugin --profile web add <本地目录>` 在隔离 `DSH_HOME` 里生成 `link:` 依赖、并把 bundle 自动追加进 `dsh.profile.bundles`；`dsh web --port <n>` 的启动行打印 `http://127.0.0.1:<端口>/?token=…`（端口应固定，见 10）。**树外 link 的官方包解析**：插件自己 `node_modules` 没有 SDK 链接时实例照常启动、插件静默消失（日志 `failed to import … Cannot find package 'cordis'` + `warning: 1 entry did not activate`）；补上 `@deepseek-ai` 与 `cordis` 链接后正常装载、无警告。以上写入 [10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」。
 
 **仍保留 0.2.0-rc.2 标注（未按 0.2.1 重核）**：06 的组件逐条 props 与几何（槽位尺寸、间距）；07 的渲染契约细节（hooks 顺序、chrome 归属）；10 的图标验收路径细节；13 里 0.1.5 时段的实例与 0.2.0 迁移表。重核时按上面的「复核动作」逐条跑，并在本文件追加日期。
 

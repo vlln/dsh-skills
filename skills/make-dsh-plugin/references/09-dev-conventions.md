@@ -23,7 +23,7 @@
 | 8 | 资产从安装包解析，不读 profile / preset 目录 | preset 没有自己的目录；写死相对路径在安装形态下必坏 | [02-profile-and-preset.md](02-profile-and-preset.md) §2.6 |
 | 9 | 时效知识分家：机制带版本号；渠道 / 社区 / 生态现状**只进 12**（写"是什么/怎么用"，不写"最新/N 个"）；复核节奏归项目 README | "最新版 / 社区在 X / 市场有 N 个"是断言，会烂掉；"在 0.x 实测"是记录 | [SKILL.md](../SKILL.md)「溯源」、[12-ecosystem.md](12-ecosystem.md) |
 | 10 | README 只写使用者内容；工程备忘录进 `AGENTS.local.md` / `docs/engineering-notes.md` | 读者不对，关键信息会被淹掉（反例：602 行 README，安装节在 573 行） | [SKILL.md](../SKILL.md) Step 6 |
-| 11 | 开发中与每次功能改动后都起**独立实例**验证（独立进程 + **持久私有 `DSH_HOME`** + 随机端口；永不指向 `~/.dsh`），把 URL 与测试点交给**用户手动测试** | 每次新建 home 会丢会话；在用户正在用的 GUI / 真实 `~/.dsh` 里试会污染真实数据、与主进程抢写会话日志，还会把半成品留在用户 profile 里 | [10-install-and-verify.md](10-install-and-verify.md)「本地开发实例」 |
+| 11 | 开发中与每次功能改动后都起**独立实例**验证（独立进程 + **持久私有 `DSH_HOME`** + **固定端口**；永不指向 `~/.dsh`），把 URL 与测试点交给**用户手动测试** | 每次新建 home 会丢会话；每次换端口会让旧 URL 失效、像进程挂了；在真实 `~/.dsh` 里试会污染数据并与主进程抢写 | [10-install-and-verify.md](10-install-and-verify.md)「本地开发实例」 |
 | 12 | 用户数据放**用户工作区**（空则空状态，不放示例）；不向 agent 暴露路径 / 工具链；内容以代码产出时用 **skill + 命令**而不是工具面；面板必须绑定会话身份、批注走人的消息 | 安装目录当项目 ⇒ 每个会话看到同一示例、agent 只能改插件里的代码；靠"不要做 X"的提示补漏说明设计漏了 | [15-product-boundaries.md](15-product-boundaries.md) |
 
 ## 门禁

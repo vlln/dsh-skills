@@ -132,7 +132,7 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 8 | 资产从安装包解析，不读 profile / preset 目录 | preset 没有自己的目录（[02-profile-and-preset.md](references/02-profile-and-preset.md) §2.6） |
 | 9 | 机制带版本号；渠道 / 社区 / 生态现状**只进 12**（时效数据），并写"是什么/怎么用"而不是"最新/N 个" | 无日期的时效断言会烂掉；实测记录不会 |
 | 10 | README 只写使用者内容；工程备忘录进 `AGENTS.local.md` / `docs/` | 读者不对，关键信息会被淹掉（Step 6） |
-| 11 | 开发实例 = 独立进程 + **持久的私有 `DSH_HOME`**（`~/.dsh-<插件>`，建一次、复用、不删）+ 随机端口；**永不指向 `~/.dsh`**；URL + 测试点交给**用户手动测试** | 每次新建 home 会丢会话（用户以为插件把历史吃掉了）；复用真实 home 会与主 GUI 抢写同一份会话日志；把半成品留在用户 profile 里（[10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」） |
+| 11 | 开发实例 = 独立进程 + **持久的私有 `DSH_HOME`**（`~/.dsh-<插件>`，建一次、复用、不删）+ **固定端口**（只挑一次、存进 home、永远复用，避开 3080）；**永不指向 `~/.dsh`**；URL + 测试点交给**用户手动测试** | 每次新建 home 会丢会话；每次换端口会让旧 URL 全部失效（用户以为进程死了）；复用真实 home 会与主 GUI 抢写会话日志（[10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」） |
 | 12 | 插件的“用户数据”不能是它自己的安装目录：数据放用户工作区，空工作区给**空状态**而不是示例片；不要把路径 / 工具链 / “不要做某事”写进提示 | 安装目录当项目 ⇒ 每个会话都看到同一部示例、agent 只能去插件目录里改代码；靠提示补漏说明设计漏了（[15-product-boundaries.md](references/15-product-boundaries.md)） |
 
 ## 何时使用
