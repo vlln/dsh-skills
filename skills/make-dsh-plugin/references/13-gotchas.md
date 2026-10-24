@@ -367,3 +367,26 @@ chip 几何是宿主 CSS：`.tab { flex: 0 1 auto; min-width: 80px; max-width: 1
 **判据**：DevTools 里 chip 有 `data-dockkit-tab`、行有 `data-dockkit-strip-tabs`、面板有 `data-sidebar-right-panel`；
 这些属性哪天消失，上面的 CSS 与菜单行会一起静默失效。参考实现：`vlln/DSH-better-sidebar` 的
 `src/client/layout.css`（三条声明）与 `src/client/native/tab-menu.tsx`（四项 + `stripOrderOf`）。
+
+## 20. 真机挂载才抓得到的两类"全绿也炸"（0.2.1-rc.1 实测）
+
+单测/mock ctx 全绿、构建通过、页面也不报错，但功能就是不动。两个真实案例（同一次独立实例验证里连中）：
+
+**① `list` 槽必须给 `options.id`**（keyed 给 `key`，chain 给 `select`）。只写
+`ctx.slots.register({ name: 'sidebar.right.tab.menu.item' }, Component)` 会在真实 registry 上抛
+`list slot "…" requires options.id`——而 mock ctx 如果只镜像 `name`，这条永远测不出来。
+修法：`register({ name, id: 'my-plugin:that-entry' }, …)`；同时把假 ctx 升级成**会拒绝无 id 的 list 注册**，
+并加一条「注册确实带 id」的正向断言（否则下次还会漏）。
+
+**② `@media` 块没闭合 → 它之后的每条规则都死**。浏览器在 EOF 隐式闭合未闭合的块，于是
+"语法合法、构建通过、单测全绿"，而实际渲染里那批规则只在该 media 条件成立时才生效
+（本例是 `@media (prefers-reduced-motion: reduce)` 吞掉了子面板翻转/贴靠与随后新增的 chip 等宽规则，
+**从 v0.26.0 一路发到 v0.28.0**）。
+
+**判据（唯一可靠的）**：真机里 `getComputedStyle(el)` 读你要改的那条属性。页面里存在我们的 `<style>`、
+规则文本在 bundle 里 → 都不算证据。样式改动排查顺序：
+`getComputedStyle` → 若没命中，先看 `document.styleSheets` 里规则有没有被**解析**（`cssRules` 条数远少于预期 =
+文件里有块没闭合/有语法错误）→ 再看选择器特异性与加载顺序。
+
+**根因预防**：给样式表加一条"块结构"测试（花括号配平 + 关键块只含它该含的规则），
+拿掉那个 `}` 就当场红；并在验证表里把「样式/布局」单列一行（见 [10-install-and-verify.md](10-install-and-verify.md)「验证按改动面」）。

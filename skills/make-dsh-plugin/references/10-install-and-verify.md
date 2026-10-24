@@ -49,6 +49,7 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 | volatile 配置 | 仅 volatile 值变更时原地更新；其他配置变更可能重新挂载 |
 | Node half 源码 | 两条路径：① 源码 HMR（显式配置 `root` 且路径命中、不被 `ignored` 排除）② profile 重组时的文件变化替换（覆盖 `node_modules`/link，无需 root）。替换加载失败 → 插件以 `failed` 报告（不是"需要重启"）。都不生效才重启兜底 |
 | client half | 先重建产物；按客户端 HMR / 页面刷新验证新 bundle。HMR 接收器存在不等于构建 watcher 在运行 |
+| 样式 / 布局（client CSS） | 真机里读 `getComputedStyle` 确认规则**命中**——页面里存在我们的 `<style>` 不算证据（未闭合的 `@media` 块会把后续规则整段吞掉：语法合法、构建通过、单测全绿，见 [13-gotchas.md](13-gotchas.md) 20） |
 | 顶层 icon / 图标资源 | 元数据读取直接读 manifest 与图片文件；刷新 Plugins 数据可更新，无须据此重启 Node 插件。仍需验证实际图片和打包结果 |
 | bundle 内部 patch 单独变化 | 不等于 profile bundles 列表变化；须验证配置重读是否实际触发，不假定所有文件都受 watch |
 
