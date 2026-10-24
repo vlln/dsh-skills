@@ -117,7 +117,7 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 | home 持久且私有 | `~/.dsh-<任务名>`，建一次、复用、**永不删**；脚本**结构性拒绝** `DSH_HOME == ~/.dsh`，也不读继承来的 `DSH_HOME` | 每次回来会话没了（用户以为插件吃了历史）；两个写者损坏同一份会话日志 |
 | 端口固定 | 只挑一次（排除 3080），存进 home 的 `web-port`，以后每次都用；被占用时报错并给 `lsof -nP -iTCP:<port> -sTCP:LISTEN`，**不许悄悄换** | 旧 URL 全部失效，用户以为进程挂了 |
 | 凭据 | 首次从 `~/.dsh` 拷一次 `.env` / `.credentials.yaml` / 模型配置，之后不覆盖 | — |
-| 启动环境 | **不要从受限沙盒里的 shell 启动**：seatbelt 不能嵌套，实例会误判 workspace-write 不可用，退化成"每条命令都要授权" | agent 频繁申请权限，被误读成沙盒坏了 |
+| 启动环境 | **不要从受限沙盒里的 shell 启动**：seatbelt 不能嵌套，实例会误判 workspace-write 不可用，退化成"每条命令都要授权"。确实只有沙箱内的 shell 时，**申请沙箱外权限去启动**（一次性 danger-full-access），不要为了绕开权限另建 home / 换端口 | agent 频繁申请权限，被误读成沙盒坏了；或悄悄多出一套测试环境，会话与端口都对不上 |
 
 ```sh
 # 1) 私有 home：建一次，之后复用；绝不指向 ~/.dsh
