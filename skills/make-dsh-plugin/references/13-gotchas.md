@@ -364,6 +364,12 @@ chip 几何是宿主 CSS：`.tab { flex: 0 1 auto; min-width: 80px; max-width: 1
 （`closeIn` 的 `canCloseTab` 守卫），所以「关闭全部」不会把栏关空。行样式复刻 kit 的 `.menuItem` 量度
 （`padding: 4px 7px`、`13px - 1px`、`--dsw-radius-md`），因为它渲染在 kit 的 `<div role="menu">` 里，而菜单项**没有导出件**。
 
+**关闭时冻结宽度（Chrome 的"指针还在条带上就不重排"）**：宿主**在关闭页签时会重建条带的 DOM**——实测
+`[data-dockkit-strip]` 节点被整个换掉，所以"挂在条带元素上的属性 / 挂在它上面的 MutationObserver"会在最需要
+它的那一刻失效。可用的形状：状态挂 **`<html>`**（`data-dsh-tabs-frozen` + 一个 CSS 变量），由**关闭手势**
+（`pointerdown` 落在宿主的 `[data-dockkit-tab-close]`、或中键按在 chip 上）触发，量的是**关闭前**的宽度；
+释放按"指针是否还在那条带"判定——注意关掉被 hover 的 chip 时浏览器发的是 **`relatedTarget: null` 的
+`pointerout`**，把它当成"离开"会当场解冻，需要延后一个 task 用 `elementFromPoint` 复核。
 **判据**：DevTools 里 chip 有 `data-dockkit-tab`、行有 `data-dockkit-strip-tabs`、面板有 `data-sidebar-right-panel`；
 这些属性哪天消失，上面的 CSS 与菜单行会一起静默失效。参考实现：`vlln/DSH-better-sidebar` 的
 `src/client/layout.css`（三条声明）与 `src/client/native/tab-menu.tsx`（四项 + `stripOrderOf`）。
