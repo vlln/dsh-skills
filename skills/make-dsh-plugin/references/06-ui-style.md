@@ -247,6 +247,10 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
   给自绘视图挂**稳定的 `data-*` 属性**，用属性选择器定位与隐藏（例：新增 `conversation.view`
   页签会继承外壳的拖动宽度手柄 `[data-width-handle]`，用
   `:has([data-my-view]) [data-width-handle]{display:none}` 关掉，见 13-gotchas.md 12）。
+- **宿主 chrome 也能改，但只锚它机器可读的 `data-*`、并限定作用域**：例如原生右侧栏的页签 chip 是
+  `[data-sidebar-right-panel] [data-dockkit-tab]`（宿主自己的布局代码也读这些属性）。允许的最小面 = 少量声明、
+  不点类名、不用 `!important`、失效**静默回退**（选择器不再匹配即回到宿主外观）；**宁可少渲染一行，也别猜作用域**
+  （例：菜单项拿不到 pane 就整行不渲染，而不是退化成会话级操作）。实测坑与完整代码见 13-gotchas.md 19。
 - 图标：`Icon<名称><Outline|Fill>?<Regular|Medium>`，`Regular` = 1px 描边、`Medium` = 1.3px 同几何，
   `size` prop 控制渲染尺寸（各字形自持默认值，多为 16，少量 14/20/10）。
   颜色骑 `currentColor`，`aria-hidden` 是内置的——**无障碍名字归你**。

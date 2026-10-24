@@ -329,3 +329,41 @@ gh issue delete <n> --repo OWNER/REPO --yes                   # 附件不随 iss
 
 **判据**：`curl -I <url>` 应 302 到 `….s3.amazonaws.com/….mp4`；再用 `/markdown` API 渲染一次确认出的是
 播放器组件而不是 `<a>`。完整流程与大小上限见 [11-publish.md](11-publish.md)「README 首屏」。
+
+## 19. 原生右侧栏页签条：chip 几何与「关闭邻居」都属于宿主（0.2.1-rc.2）
+
+**症状**：插件自己的页签条已经等宽，但用户看到的「文件页签」在 **DSH 原生右侧栏**顶部——宽度仍跟着标题走
+（`README.md` 窄、`sidebar.module.css` 宽），每个 × 不在同一列；右键菜单只有「关闭」，没有「关闭其他 / 左 / 右 / 全部」。
+
+**归属**：那条条带由宿主的 docking kit 渲染，插件只通过 `sidebar.right.pane.tab.title` 贡献 chip 内容。
+chip 几何是宿主 CSS：`.tab { flex: 0 1 auto; min-width: 80px; max-width: 170px }`；行是
+`.stripTabs { flex: 0 1 auto; overflow-x: auto }`，旁边还有 `.stripFill { flex: 1 1 0 }` 占位；× 是
+`position: absolute; right: 4px; opacity: 0`，**hover 或该 chip 激活时才出现**。
+
+**等宽（实测可行的最小面）**：三条声明，锚**稳定语义属性**（宿主自己的布局代码也读它们——
+`measure.ts` 的 chip 尺寸、`data-dockkit-tab-clipped` 的截断检测都靠这些属性），不点 hash 类名、不用 `!important`：
+
+```css
+[data-sidebar-right-panel] [data-dockkit-strip-tabs] { flex: 1 1 0; } /* 行吃掉条带余量 */
+[data-sidebar-right-panel] [data-dockkit-strip-fill]  { flex: 0 0 0; } /* 否则占位与行对半分 */
+[data-sidebar-right-panel] [data-dockkit-tab]         { flex: 1 1 0; } /* 等分；80/170 不变 */
+```
+
+三个坑，都实测过：① **只改 chip 不够**——行是内容宽的，页签簇不会去吃条带余量（2 个页签停在 115 而不是 190）；
+② **忘了让 `strip-fill` 让位**，它会和行对半分余量（宽条带下页签簇只占左半边）；③ **作用域必须带
+`[data-sidebar-right-panel]`**——浮动窗的浮层头复用同一批类（`.tab.floatTitle` / `.stripFill`）但没有这两个属性。
+失效模式是**静默**的：宿主改名或换布局模型后选择器不再匹配，chip 退回宿主自己的内容宽，不报错也不破版式——
+这正是这类耦合可接受的降级形态。两条属性选择器（0,2,0）压过宿主的单类（0,1,0），所以**与样式表注入顺序无关**。
+
+**关闭邻居**：宿主给了公开槽 `sidebar.right.tab.menu.item`（list，owner 只有 `{ tab, dismiss }`），但
+`TabRecord` 只有 `{ id, kind, contentId, title }`、`tabsIn()` 是 `Object.values(layout.tabs)` ——
+**没有 pane、也没有条带顺序**。要按条带作用域就得自己从 chip 读：`[data-dockkit-tab]` ⊂
+`[data-dockkit-strip-tabs]`，分屏是两个 strip，所以用**被点 chip 的 `closest()`**；**解析不到就一行都不渲染**
+（kit 自己的「关闭」仍在 → 不会出现死行；**绝不要退回会话级**——那会关掉另一栏的页签）。
+关闭动作走 `ctx.sidebarRight.close(tabId)`：它对不可关闭的页签（唯一的 docked guide）是 no-op
+（`closeIn` 的 `canCloseTab` 守卫），所以「关闭全部」不会把栏关空。行样式复刻 kit 的 `.menuItem` 量度
+（`padding: 4px 7px`、`13px - 1px`、`--dsw-radius-md`），因为它渲染在 kit 的 `<div role="menu">` 里，而菜单项**没有导出件**。
+
+**判据**：DevTools 里 chip 有 `data-dockkit-tab`、行有 `data-dockkit-strip-tabs`、面板有 `data-sidebar-right-panel`；
+这些属性哪天消失，上面的 CSS 与菜单行会一起静默失效。参考实现：`vlln/DSH-better-sidebar` 的
+`src/client/layout.css`（三条声明）与 `src/client/native/tab-menu.tsx`（四项 + `stripOrderOf`）。
