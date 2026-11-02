@@ -4,28 +4,35 @@
  * persistence code and report whether the GUI can load it.
  *
  * `check-session.py` approximates the harness's checks; this script is the real
- * thing: it imports the installed
- * `@deepseek-ai/dsh-session-persistence-jsonl` (the same module the web server
- * loads), runs the full released-format migration (v0 -> current), and reports
- * the refusal verbatim when the log is rejected.
+ * thing: it mounts the installed
+ * `@deepseek-ai/dsh-session-persistence-jsonl` on a bare Cordis Context (the
+ * same module and the same migration chain the web server loads), points it at
+ * a throwaway store holding a COPY of the log, and opens it read-only.
  *
- * The log is COPIED into a throwaway store first, so nothing under
- * `~/.dsh/sessions` is read-modified or migrated: the harness publishes
- * migrated generations next to the source artifact on a successful open, and we
- * must not trigger that for a file we are only inspecting.
+ * The real store is never touched: nothing under `~/.dsh/sessions` is read,
+ * migrated, or rewritten (a successful open publishes the migrated generation
+ * next to the artifact).
  *
  * usage:
  *   node verify-session.mjs <session.jsonl.zstd> [more.zstd ...]
  *
  * Exit codes: 0 = every log loads, 1 = at least one is refused, 2 = usage or
- * environment error (dsh installation not found).
+ * environment error (dsh installation not found, unreadable header).
  *
  * Set DSH_MODULES to the node_modules directory that holds `@deepseek-ai/dsh*`
  * when auto-detection fails (e.g. DSH_MODULES=$(npm root -g)).
+ *
+ * Baseline note: the previous implementation called `new JsonlSessionPersistence(...)`.
+ * The package now exports a Cordis plugin (`apply` / `Config`), so that shape
+ * throws `TypeError: JsonlSessionPersistence is not a constructor` on current
+ * builds. Mounting the plugin is the version-agnostic route: it needs no
+ * private constructor signature, only the service name `sessionPersistence`
+ * and the two constructor config fields (`root`, `compression`).
  */
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { basename, dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 function modulesRoot() {
@@ -59,49 +66,20 @@ function modulesRoot() {
     if (existsSync(join(candidate, '@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'))
       && existsSync(join(candidate, '@deepseek-ai/cordis/lib/index.js'))) return candidate
   }
-  console.error('verify-session: could not locate the installed dsh packages; set DSH_MODULES=<node_modules dir>')
-  process.exit(2)
-}
-
-const MODULES = modulesRoot()
-const { Context } = await import(pathToFileURL(join(MODULES, '@deepseek-ai/cordis/lib/index.js')).href)
-const { default: JsonlSessionPersistence } =
-  await import(pathToFileURL(join(MODULES, '@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js')).href)
-
-/** Read only the header line (its own zstd frame) for id/cwd. */
-function readHeader(path) {
-  const out = execFileSync('zstd', ['-dc', '-q', path], { maxBuffer: 64 * 1024 * 1024 })
-  const line = out.toString('utf8').split('\n', 1)[0]
-  return JSON.parse(line)
+  return undefined
 }
 
 /**
- * The backend resolves a stored log from the header alone
- * (`<root>/<projectKey(cwd)>/<encodeSegment(id)>/session.jsonl.zstd`) and
- * refuses a file parked anywhere else, so the copy must reproduce both
- * encodings exactly — ported verbatim from the installed bundle
- * (`session-persistence-jsonl/lib/index.js`, `encodeSegment`/`projectKey`).
+ * The project directory the store expects for a cwd — a mirror of `projectKey`
+ * in `@deepseek-ai/dsh-session-persistence-jsonl`. The store refuses an artifact
+ * whose location does not match its header (`header id … and cwd identify …`),
+ * so the throwaway copy must sit under this key.
  */
-function encodeSegment(raw) {
-  if (raw === '.') return '~002E'
-  if (raw === '..') return '~002E~002E'
-  let out = ''
-  for (let i = 0; i < raw.length; i++) {
-    const code = raw.charCodeAt(i)
-    const ch = String.fromCharCode(code)
-    if (ch !== '~' && /^[A-Za-z0-9._-]$/.test(ch)) out += ch
-    else out += '~' + code.toString(16).toUpperCase().padStart(4, '0')
-  }
-  return out
-}
-
 function projectKey(cwd) {
-  if (cwd.length === 0) throw new Error('cannot encode an empty project path')
+  if (cwd === undefined) return '_no-cwd'
   let readable = ''
   let separatorRun = false
-  for (let i = 0; i < cwd.length; i++) {
-    const code = cwd.charCodeAt(i)
-    const ch = String.fromCharCode(code)
+  for (const ch of cwd) {
     if (ch === '/' || ch === '\\' || ch === ':') {
       if (!separatorRun) readable += '-'
       separatorRun = true
@@ -109,70 +87,102 @@ function projectKey(cwd) {
       readable += ch
       separatorRun = false
     } else {
-      readable += '~' + code.toString(16).toUpperCase().padStart(4, '0')
+      readable += '~' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')
       separatorRun = false
     }
   }
   return `--${(readable.replace(/^-+/, '') || 'root').slice(0, 251)}--`
 }
 
-function summariseTurns(events) {
-  const turns = []
-  for (const event of events) {
-    if (event.type === 'turn/start') turns.push({ turn: event.data.turn, end: undefined })
-    else if (event.type === 'turn/end') {
-      const current = turns.at(-1)
-      if (current !== undefined && current.turn === event.data.turn) current.end = event.data.reason?.kind
+/** Read the header line (the only line in the log's first zstd frame). */
+function readHeader(path) {
+  return new Promise((resolveHeader, reject) => {
+    const child = spawn('zstd', ['-dc', '-q', path])
+    let buffer = ''
+    let done = false
+    const finish = (fn, value) => {
+      if (done) return
+      done = true
+      child.kill()
+      fn(value)
     }
-  }
-  const open = turns.filter(turn => turn.end === undefined)
-  return { turns, open }
+    child.stdout.on('data', (chunk) => {
+      buffer += chunk.toString('utf8')
+      const end = buffer.indexOf('\n')
+      if (end === -1) return
+      try { finish(resolveHeader, JSON.parse(buffer.slice(0, end))) } catch (error) { finish(reject, error) }
+    })
+    child.on('error', (error) => finish(reject, error))
+    child.on('close', () => finish(reject, new Error('session header line not found')))
+  })
 }
 
-async function verifyOne(path) {
-  const header = readHeader(path)
-  // One throwaway store per log: two copies of the same session (e.g. a log and
-  // its backup) in one root would collide as a duplicate id.
-  const root = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'dsh-verify-'))
-  const target = join(root, projectKey(header.cwd ?? ''), encodeSegment(header.id))
-  mkdirSync(target, { recursive: true })
-  copyFileSync(path, join(target, 'session.jsonl.zstd'))
+async function waitForService(app, name, timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const service = app.get(name)
+    if (service) return service
+    if (Date.now() > deadline) throw new Error(`service "${name}" did not become available`)
+    await new Promise((r) => setTimeout(r, 20))
+  }
+}
 
-  const ctx = new Context()
-  const persistence = new JsonlSessionPersistence(ctx, { root, compression: 'zstd' })
-  const handle = await persistence.open(header.id, 'read')
+async function verifyOne(path, root) {
+  const work = mkdtempSync(join(tmpdir(), 'dsh-verify-'))
+  const store = join(work, 'sessions')
   try {
-    const read = await handle.read(0, undefined)
-    const { turns, open } = summariseTurns(read.events)
-    const closers = turns.filter(turn => turn.end === 'interrupted').map(turn => turn.turn)
-    console.log(`${path}: OK — ${read.events.length} logical events, ${turns.length} turn(s)`
-      + (closers.length ? `, interrupted closer(s) for turn(s) ${closers.join(', ')}` : ''))
-    if (open.length) console.log(`${path}:   WARNING: turn(s) ${open.map(t => t.turn).join(', ')} still open in the migrated output`)
-    const bad = turns.filter(turn => turn.end === undefined || turn.end === 'error')
-    return bad.length === 0
-  } finally {
+    const header = await readHeader(path)
+    const id = header.id
+    const dir = join(store, projectKey(header.cwd), id)
+    mkdirSync(dir, { recursive: true })
+    copyFileSync(path, join(dir, basename(path)))
+
+    const { Context } = await import(pathToFileURL(join(root, '@deepseek-ai/cordis/lib/index.js')).href)
+    const { apply } = await import(pathToFileURL(join(root, '@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js')).href)
+    const app = new Context()
+    app.plugin(apply, { root: store, compression: 'zstd' })
+    const persistence = await waitForService(app, 'sessionPersistence')
+
+    const handle = await persistence.open(id, 'read')
+    const { events } = await handle.read()
     await handle.close()
-    rmSync(root, { recursive: true, force: true })
+    const turns = events.filter((event) => event.type === 'turn/start').length
+    const interrupted = events.filter((event) => event.type === 'turn/end' && event.data?.reason?.kind === 'interrupted').length
+    return {
+      ok: true,
+      text: `OK — ${events.length} logical events, ${turns} turn(s)`
+        + (interrupted ? `, interrupted closer(s) for ${interrupted} turn(s)` : ''),
+    }
+  } catch (error) {
+    return { ok: false, text: `REFUSED — ${error?.name ?? 'Error'}: ${error?.message ?? error}` }
+  } finally {
+    rmSync(work, { recursive: true, force: true })
   }
 }
 
-const files = process.argv.slice(2)
-if (files.length === 0) {
-  console.error('usage: node verify-session.mjs <session.jsonl.zstd> [more.zstd ...]')
-  process.exit(2)
-}
-let ok = true
-for (const file of files) {
-  if (!existsSync(file)) {
-    console.log(`${file}: MISSING`)
-    ok = false
-    continue
+async function main() {
+  const targets = process.argv.slice(2)
+  if (targets.length === 0) {
+    console.error('usage: node verify-session.mjs <session.jsonl.zstd> [more.zstd ...]')
+    return 2
   }
-  try {
-    if (!await verifyOne(file)) ok = false
-  } catch (error) {
-    console.log(`${file}: REFUSED — ${error?.constructor?.name ?? 'Error'}: ${error?.message ?? error}`)
-    ok = false
+  const root = modulesRoot()
+  if (root === undefined) {
+    console.error('cannot locate the installed @deepseek-ai dsh packages; set DSH_MODULES=<node_modules dir>')
+    return 2
   }
+  let failed = 0
+  for (const path of targets) {
+    if (!existsSync(path)) {
+      console.log(`${path}: ERROR — no such file`)
+      failed += 1
+      continue
+    }
+    const result = await verifyOne(resolve(path), root)
+    console.log(`${path}: ${result.text}`)
+    if (!result.ok) failed += 1
+  }
+  return failed > 0 ? 1 : 0
 }
-process.exit(ok ? 0 : 1)
+
+process.exit(await main())

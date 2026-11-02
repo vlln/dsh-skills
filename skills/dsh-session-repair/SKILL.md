@@ -3,20 +3,24 @@ name: dsh-session-repair
 description: >-
   当 DSH 会话历史在 GUI 中无法加载或显示错乱时使用本技能——例如报错
   "corrupt Zstandard session log: complete frame contains a torn JSONL record"、
-  "turn/start N does not close the prior turn"、会话打不开、或对话尾部/顺序错乱。
-  两个常见根因：(1) 同一会话被两个客户端同时打开或继续（两个 GUI 标签页、两个 dsh
-  进程），第二个写入者从过期水位恢复，追加的事件 seq 与已提交的重复；(2) 回合结构
-  损坏——某个 turn 只有 turn/start 没有 turn/end，紧随其后的 turn/start 被 harness
-  的格式迁移拒绝。本技能扫描 ~/.dsh/sessions 下的 JSONL 会话日志，检测并修复这两类
-  损坏，再用 harness 自身的持久化代码验证修复结果。
+  "turn/start N does not close the prior turn"、"working-directory: directory does
+  not exist"（工作目录被改名/移动）、会话打不开、会话名全变「未命名」、或对话尾部/
+  顺序错乱。三个常见根因：(1) 同一会话被两个客户端同时打开或继续（两个 GUI 标签页、
+  两个 dsh 进程），第二个写入者从过期水位恢复，追加的事件 seq 与已提交的重复；
+  (2) 回合结构损坏——某个 turn 只有 turn/start 没有 turn/end，紧随其后的 turn/start
+  被 harness 的格式迁移拒绝；(3) 宿主目录改名/移动，会话 header 里记的 cwd 不再存在，
+  连带 workspace.json 与会话标题缓存都要跟着迁。本技能扫描 ~/.dsh/sessions 下的 JSONL
+  会话日志，检测并修复前两类损坏、迁移第三类的四份派生状态，再用 harness 自身的持久化
+  代码验证结果。
 license: MIT
 metadata:
   author: vlln
-  version: "0.2.0"
+  version: "0.3.0"
 requires:
   bins:
     - zstd
     - python3
+    - node
 ---
 
 # DSH Session Log Repair
@@ -29,6 +33,11 @@ either one while looking perfectly fine line by line:
 |---|---|---|
 | **Seq corruption** | The decoded event stream must be strictly contiguous `seq 0,1,…,N`. | `corrupt Zstandard session log: complete frame contains a torn JSONL record`, "history unavailable". |
 | **Turn-structure corruption** | At most ONE turn may be open: every `turn/start` must be preceded by the close of the previous turn (a `turn/end`, or the one inbox shape the harness recovers). | `turn/start N does not close the prior turn; source v0 artifact remains unchanged`, `failed to observe session …` |
+
+A THIRD failure mode is not log damage at all: the host renamed or moved the
+directories the sessions live in, so every stored `cwd` is gone. Symptom and
+repair are different enough to have their own section —
+[§ When the working directory disappeared](#when-the-working-directory-disappeared-host-directory-renamed-or-moved).
 
 Seq corruption comes from **concurrent multi-client writes**: two clients (GUI
 tabs, or two dsh processes like the `dsh-0806`/`dsh-0807` stations) appended to
@@ -117,7 +126,9 @@ Sessions live under `~/.dsh/sessions/<project-dir>/<session-id>/session.jsonl.zs
 (project dirs are URL-encoded cwd paths like `--Users-vlln-Project-dsh-plugins--`).
 Find the id from the GUI's workspace, or from
 `~/.dsh/storages/workspace.json` (sessionIds per workspace) and
-`~/.dsh/storages/session_projcache.json` (session id → title).
+`~/.dsh/storages/session_projcache/sessions/<id>.json` (titles and every other
+projection checkpoint; the older monolithic `session_projcache.json` is a
+version-3 predecessor kept for compatibility).
 
 ### Stage 2: Check
 
@@ -187,16 +198,69 @@ test, because it runs the real migration instead of the skill's approximation:
 node "$_S/scripts/verify-session.mjs" <path/to/session.jsonl.zstd>
 ```
 
-It copies the log into a throwaway store, opens it read-only with the installed
-`@deepseek-ai/dsh-session-persistence-jsonl`, and prints either
-`OK — <n> logical events, <t> turn(s), interrupted closer(s) for turn(s) …` or
-the refusal verbatim (exit 0/1). It never migrates or rewrites the real
-artifact. Set `DSH_MODULES=<node_modules dir>` if it cannot locate the installed
-dsh packages.
+It copies the log into a throwaway store (under the project key its header
+names — the store refuses a misplaced artifact), mounts the installed
+`@deepseek-ai/dsh-session-persistence-jsonl` on a bare Cordis Context, opens it
+read-only, and prints either `OK — <n> logical events, <t> turn(s)[, interrupted
+closer(s) for <t> turn(s)]` or the refusal verbatim (exit 0/1). It never
+migrates or rewrites the real artifact. Set `DSH_MODULES=<node_modules dir>` if
+it cannot locate the installed dsh packages. It mounts the plugin instead of
+constructing a class, so it survives export-shape changes between dsh releases.
 
 Finally refresh the GUI and open the session. The projection cache
 (`~/.dsh/storages/session_projcache/`) self-heals on the next cold read — do NOT
 edit it by hand.
+
+## When the working directory disappeared (host directory renamed or moved)
+
+This mode has nothing to repair inside the log. The stored header names the
+session's working directory (`"cwd"`), the log's folder name is derived from that
+path, and two GUI stores are keyed on it. Rename `~/Project` → `~/Projects` (or
+move one project) and every old session refuses to start a turn:
+
+```
+working-directory: directory does not exist: "/Users/<you>/Project/<project>"
+```
+
+The `working-directory` service checks the recorded directory, then falls back to
+the session's original header cwd — both are the old path, so the turn cannot
+start. The log itself is fine and will open again once its cwd resolves.
+
+Four things bind the path; fix them together or the GUI still looks broken:
+
+| Store | What binds the path | If skipped |
+|---|---|---|
+| `sessions/<project-key>/<id>/session*.jsonl.zstd` | header `cwd`, plus any `working-directory/change` event payloads | the turn refuses with the error above |
+| the project-directory name itself | `projectKey(header.cwd)` | logs still open, but new sessions for the same project split across two folders |
+| `storages/workspace.json` | workspace `path` must equal a session cwd | sessions disappear from the sidebar at the next boot |
+| `storages/session_projcache/` | checkpoint `identity.cwd` (with `createdAt` / `isSeeded` / `formatVersion`) | the sidebar shows every session as **untitled** — the list reads titles only from this cache |
+
+```bash
+export _S="$HOME/.agents/skills/dsh-session-repair"
+# 0. back up: the affected project dirs + workspace.json + session_projcache*
+# 1. one mapping file, longest prefix first: [["/old/root", "/new/root"], ...]
+python3 "$_S/scripts/migrate-cwd.py"        --root ~/.dsh/sessions --map-file mapping.json
+python3 "$_S/scripts/rekey-dirs.py"         --root ~/.dsh/sessions
+python3 "$_S/scripts/migrate-workspaces.py" --map-file mapping.json
+python3 "$_S/scripts/fix-projcache.py"      --map-file mapping.json
+# verify a sample with the harness's own reader, then restart dsh web
+node "$_S/scripts/verify-session.mjs" <path/to/session.v4.jsonl.zstd>
+```
+
+All four scripts are idempotent (a no-op run prints `changed=0`) and take
+`--dry-run`. Run them for **every** `DSH_HOME` that owns sessions (`~/.dsh`,
+`~/.dsh-motion`, …) by overriding the per-home flag: `--root <home>/sessions`,
+`--path <home>/storages/workspace.json`, `--storages <home>/storages`. Then
+restart that server: the workspace registry and the projection cache are read
+into memory at boot, so the sidebar keeps the old paths and untitled names until
+then.
+
+Reasoning, merge rules, the live-lock policy, and the measurements from a real
+5-directory rename are in
+[references/workdir-migration.md](references/workdir-migration.md). Read it
+before improvising — especially before deciding a target for a directory that no
+longer exists (`hub/` → parent project; deleted junk → leave alone) or before
+touching a session a client still holds.
 
 ## Gotchas
 
@@ -246,8 +310,38 @@ edit it by hand.
   design: the harness synthesizes one for a trailing open turn on resume, and
   class C repair writes the same event for a mid-log open turn. It is not a new
   problem.
-- **Do not touch the projection cache or workspace.json.** Both are derived
-  state; the cache is fail-soft and heals on cold read.
+- **Do not touch the projection cache or workspace.json when repairing a log.**
+  Both are derived state; for corruption they are irrelevant, and the cache is
+  fail-soft (it heals on cold read). The one exception is a cwd migration, where
+  they are *authoritative inputs* and skipping them leaves the sidebar empty or
+  untitled (see the section above).
+- **The projection cache binds more than the path.** A checkpoint is accepted
+  only when `identity.cwd` *and* `createdAt` *and* `isSeeded` match the live
+  header (`formatVersion` gates the fold shortcut). Rewriting a header's cwd
+  therefore invalidates every record at once — that is why "all my sessions
+  became untitled" is a cache symptom, never lost titles: the `session/title`
+  event is still in the log.
+- **Two workspace records can never own one canonical path.** When a renamed
+  directory collides with a workspace that already exists (`hub/` merging into
+  the parent project, `agent-space` into `Workbench`), merge the records:
+  append the old `sessionIds` to the keeper and drop the obsolete id from
+  `global.workspaceIds`. The registry validates path uniqueness at boot and two
+  records for one path are a boot-time defect.
+- **A running server overwrites your edits from memory.** `workspace.json` is
+  rewritten wholesale on any workspace mutation (create / delete / attach /
+  reorder), so an edit made while the GUI runs can be clobbered before the next
+  restart. Do the migration last, restart promptly, and re-run the idempotent
+  script if the user touched workspaces in between.
+- **Never migrate a log a client still holds.** Every session has a
+  `session.lock` next to it; the scripts probe it with `flock` and skip a held
+  session. `--force-live` exists for the one shape where it is safe: a session
+  that cannot even start a turn because its own cwd is gone — then tell the user
+  not to send messages in that tab before the restart, or the live handle appends
+  to the unlinked inode.
+- **`ensure_ascii=False` explodes on cached titles.** Some `title` / `titleInput`
+  strings carry lone surrogates from a code-unit cut (`\ud835`), which Python
+  cannot encode as UTF-8. Write those JSON files with `ensure_ascii=True`: the
+  escaped form is the same JSON value, and every reader parses it.
 
 ## Manual review (when repair refuses)
 
