@@ -133,6 +133,25 @@ working-directory: directory does not exist: "/Users/<you>/Project/<project>"
   格式**（`unsupported descriptor version N`、`format v2 surface before first step …`），
   与改名无关，改名前后表现一致。
 
+## 第二种形态：会话搬了自己的 cwd
+
+真实事故的第二波（同日 4 小时后）：一个负责“整理 home 目录”的会话，在被清理的
+`~/Projects/dsh-plugins` 里工作，并在同一轮里把它改名成 `~/Projects/DshPlugins`（同时把
+`repro-decision-provenance` → `Repro/…`、`skill_project` → `Skills`、`llm-gateway` →
+`LlmGateway`）。**那一轮成功结束**，下一轮一开始就 `working-directory: directory does not
+exist`——路径被它自己搬走了。
+
+特征与处置：
+
+- 日志最后两条是 `turn/start N` + `turn/end N {reason: error}`：说明是“这一轮起不来”，
+  日志结构完好，不需要 `repair-session.py`。
+- 同一个 mapping 表 + 同一套脚本直接复用（这次 1239 个日志、1229 个目录、4 条 workspace
+  记录、1398 条缓存身份），全程没有新代码。
+- 肇事会话通常还开着 → `flock` 拿不到 → 它对安全（本来就起不来）用 `--force-live`，
+  并提醒用户重启前别在那个标签页发消息。
+- 结构性建议：**目录搬迁要在中立 cwd 里做**（`~/Workbench`、`~`），或者每搬一次就
+  “迁移 + 重启”再继续；否则任务本身会周期性自杀。
+
 ## 不要走的捷径
 
 - **给旧路径建符号链接**（`~/Project -> ~/Projects`）：能让所有旧会话立刻能开，但

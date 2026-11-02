@@ -338,6 +338,14 @@ touching a session a client still holds.
   that cannot even start a turn because its own cwd is gone — then tell the user
   not to send messages in that tab before the restart, or the live handle appends
   to the unlinked inode.
+- **A task that renames its own cwd kills its own session.** A reorganization agent
+  running `mv ~/Projects/dsh-plugins ~/Projects/DshPlugins` from inside that
+  directory completes the turn fine; the NEXT turn refuses with the same
+  `working-directory: directory does not exist`, because the recorded path moved
+  out from under it. Repair is identical to the section above, and the live holder
+  is the session that just did the move (use `--force-live` once it can no longer
+  start a turn). Avoid it by doing directory moves from a neutral cwd
+  (`~/Workbench`, `~`), or by migrating + restarting between moves.
 - **`ensure_ascii=False` explodes on cached titles.** Some `title` / `titleInput`
   strings carry lone surrogates from a code-unit cut (`\ud835`), which Python
   cannot encode as UTF-8. Write those JSON files with `ensure_ascii=True`: the
