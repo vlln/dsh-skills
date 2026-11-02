@@ -28,6 +28,7 @@
 | 从 ≤0.1.5 升级到 0.2.x | §8 |
 | 插件条目不激活：`parameters must be an object of value schemas` | §14 |
 | 按钮跑到了会话标题旁边 / 塞不进右上角 `···` 菜单 | §15 |
+| `/plugins/<id>/client.js` 手测 404（插件明明在） | §21 |
 | 设置卡写了但 Plugins 页上不出现 | §16 |
 | 界面上出现 `blocked`、`summary` 这类字面量 | §17 |
 | README 里视频不出来 / `<video>` 渲染成空白 | §18 |
@@ -396,3 +397,20 @@ chip 几何是宿主 CSS：`.tab { flex: 0 1 auto; min-width: 80px; max-width: 1
 
 **根因预防**：给样式表加一条"块结构"测试（花括号配平 + 关键块只含它该含的规则），
 拿掉那个 `}` 就当场红；并在验证表里把「样式/布局」单列一行（见 [10-install-and-verify.md](10-install-and-verify.md)「验证按改动面」）。
+
+## 21. 插件 client bundle 的手测 URL 带两个问号（`??`）（0.2.1-rc.5 实测）
+
+Step 5 的检查点写「`/plugins/<id>/client.js` 200」——0.2.1-rc.5 上这个形式直接请求是 404。
+真实形式里 `?` 是**两个字面字符**（`??` 是 client-modules 的 URL 编码约定，不是笔误）：
+
+```text
+/plugins/??<包名>/client.js&rev=<启动时算出的修订号>
+```
+
+正确的打开方式（不要手拼 rev）：从页面里取现成的——
+`curl -b <cookie> http://<host>/ | grep -oE 'plugins/\?\?<包名>/client\.js&rev=[a-f0-9]+'`，
+然后**原样**请求那个 URL（含字面的 `??`）。`/plugins/<包名>/client.js?rev=<同值>`（单问号）404，
+少 rev 也 404——路由要求 URL 与广告值逐字符相等。官方包的 client.js 同样如此，
+所以这不是你的插件的问题，是这条检查点的写法在该版本上整体如此。
+
+核对 2026-11-02（dsh 0.2.1-rc.5，隔离实例实测：单问号 404、无 rev 404、双问号原样 200）。
