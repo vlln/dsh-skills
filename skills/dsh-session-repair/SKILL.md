@@ -15,7 +15,7 @@ description: >-
 license: MIT
 metadata:
   author: vlln
-  version: "0.4.0"
+  version: "0.5.0"
 requires:
   bins:
     - zstd
@@ -130,23 +130,34 @@ Find the id from the GUI's workspace, or from
 projection checkpoint; the older monolithic `session_projcache.json` is a
 version-3 predecessor kept for compatibility).
 
-Inspection is read-only and safe at any time — including on a session a client still
-holds open (writing to it is not, see Gotchas):
+Finding the session is half the work: ids are invisible in the GUI and unknown to an
+agent, while titles, working directories and recency are what people actually have. So the
+inspector takes a **selector**, not an id — `<id|path|session-dir>`, `--latest`,
+`--title <substr>`, `--cwd <substr>` — and it only reads (safe on a live session; writing
+is not, see Gotchas).
 
 ```bash
-# which log is this session, what cwd does it record, does that cwd still exist?
-python3 "$_S/scripts/inspect-session.py" header <session-id-or-path>
-# last events: turn numbers, tool calls, message previews, unclosed-turn warning
-python3 "$_S/scripts/inspect-session.py" tail <session-id-or-path> -n 20
-# the conversation as text (injected context filtered; --all to include it)
-python3 "$_S/scripts/inspect-session.py" messages <session-id-or-path> --limit 5
-# event-type histogram + logical seq range
-python3 "$_S/scripts/inspect-session.py" stats <session-id-or-path>
+# 1. discover (cheap: reads the projection cache, not the logs)
+python3 "$_S/scripts/inspect-session.py" list --limit 20            # age, id, title, cwd
+python3 "$_S/scripts/inspect-session.py" list --title 清理 --cwd DshPlugins
+# 2. pick one by any selector
+python3 "$_S/scripts/inspect-session.py" header --title 清理 --latest
+# 3. read it
+python3 "$_S/scripts/inspect-session.py" tail     --title 清理 --latest -n 20
+python3 "$_S/scripts/inspect-session.py" messages --title 清理 --latest --roles user --last --limit 5
+python3 "$_S/scripts/inspect-session.py" stats    --title 清理 --latest
+# 4. or grep conversation text across sessions
+python3 "$_S/scripts/inspect-session.py" search 'working-directory' --cwd DshPlugins --since 3
 ```
 
-`find <id>` locates the log under the store (default `~/.dsh/sessions`; override with
-`--store` for another `DSH_HOME`). `header` prints `cwd exists NO` for the
-renamed-directory family, and `tail` warns when the last turn has no `turn/end`.
+`messages` takes `--roles user,assistant`, `--last` (the newest N instead of the first N),
+`--grep <regex>`, and `--all` (include injected context — by default runtime-context /
+skill-catalog / time-context messages are hidden). `header` prints `cwd exists NO` for the
+renamed-directory family; `tail` warns when the last turn has no `turn/end`. `list` is fast
+because it reads titles and cwds from the projection cache; only `search` (and
+`header`/`tail`/`messages`/`stats`) decompress a log, so narrow a `search` with
+`--cwd/--title/--since` and cap it with `--max-scan` on a big store. An ambiguous selector
+prints the candidates instead of guessing.
 
 ### Stage 2: Check
 
