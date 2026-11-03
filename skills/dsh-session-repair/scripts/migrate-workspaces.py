@@ -65,10 +65,19 @@ def main():
             removals.append(wid)
             changes.append(('merge', wid, keeper, rec['path'], target))
         else:
-            print(f'REPOINT {wid}: {rec["path"]} -> {target}')
+            old_path = rec['path']
+            old_title = rec.get('title')
             rec['path'] = target
+            # A workspace whose title is still the old folder's basename was auto-derived;
+            # let it follow the rename, otherwise it keeps pointing at a name that is gone.
+            if old_title == os.path.basename(old_path):
+                rec['title'] = os.path.basename(target)
+                print(f'REPOINT {wid}: {old_path} -> {target}  (title {old_title!r} -> '
+                      f'{rec["title"]!r})')
+            else:
+                print(f'REPOINT {wid}: {old_path} -> {target}')
             by_path.setdefault(target, []).append(wid)
-            changes.append(('repoint', wid, None, rec['path'], target))
+            changes.append(('repoint', wid, None, old_path, target))
 
     for wid in removals:
         tables.pop(wid, None)
