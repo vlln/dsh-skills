@@ -11,11 +11,11 @@ description: >-
   被 harness 的格式迁移拒绝；(3) 宿主目录改名/移动，会话 header 里记的 cwd 不再存在，
   连带 workspace.json 与会话标题缓存都要跟着迁。本技能扫描 ~/.dsh/sessions 下的 JSONL
   会话日志，检测并修复前两类损坏、迁移第三类的四份派生状态，再用 harness 自身的持久化
-  代码验证结果。
+  代码验证结果；只读查看会话内容（header / 尾部事件 / 对话正文）用 inspect-session.py。
 license: MIT
 metadata:
   author: vlln
-  version: "0.3.0"
+  version: "0.4.0"
 requires:
   bins:
     - zstd
@@ -129,6 +129,24 @@ Find the id from the GUI's workspace, or from
 `~/.dsh/storages/session_projcache/sessions/<id>.json` (titles and every other
 projection checkpoint; the older monolithic `session_projcache.json` is a
 version-3 predecessor kept for compatibility).
+
+Inspection is read-only and safe at any time — including on a session a client still
+holds open (writing to it is not, see Gotchas):
+
+```bash
+# which log is this session, what cwd does it record, does that cwd still exist?
+python3 "$_S/scripts/inspect-session.py" header <session-id-or-path>
+# last events: turn numbers, tool calls, message previews, unclosed-turn warning
+python3 "$_S/scripts/inspect-session.py" tail <session-id-or-path> -n 20
+# the conversation as text (injected context filtered; --all to include it)
+python3 "$_S/scripts/inspect-session.py" messages <session-id-or-path> --limit 5
+# event-type histogram + logical seq range
+python3 "$_S/scripts/inspect-session.py" stats <session-id-or-path>
+```
+
+`find <id>` locates the log under the store (default `~/.dsh/sessions`; override with
+`--store` for another `DSH_HOME`). `header` prints `cwd exists NO` for the
+renamed-directory family, and `tail` warns when the last turn has no `turn/end`.
 
 ### Stage 2: Check
 
@@ -273,6 +291,9 @@ touching a session a client still holds.
   `OK … note: pre-release "legacy" format …` instead of guessing; treat
   `verify-session.mjs` as the authority in both cases, and do not "fix" such a
   log by hand.
+- **Reading is safe; writing is not.** `inspect-session.py` only reads, so it is fine on a
+  session a client still holds (`zstd -dc` on a live log can show a torn final frame — the
+  script tolerates that). Every script that rewrites the log must respect `session.lock`.
 - **A clean seq check does NOT mean the session loads.** The turn-structure
   family leaves seqs perfectly contiguous. Always run the full
   `check-session.py` (or `verify-session.mjs`) before concluding a log is fine.

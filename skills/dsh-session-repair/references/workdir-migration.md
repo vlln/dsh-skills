@@ -39,6 +39,13 @@ working-directory: directory does not exist: "/Users/<you>/Project/<project>"
 `rows.title.val`。缓存失效只损失“列表廉价的标题提示”，打开会话冷读一遍就会重建；
 但只要缓存不修，不打开就永远是「未命名」。
 
+## 先看一眼
+
+```bash
+python3 "$HOME/.agents/skills/dsh-session-repair/scripts/inspect-session.py" header <id>
+# → cwd / `cwd exists NO` / events / origin，一眼确认是不是这一类
+```
+
 ## 顺序
 
 1. **备份**：受影响的 session 项目目录（tar 即可，日志已压缩）、`workspace.json`、
