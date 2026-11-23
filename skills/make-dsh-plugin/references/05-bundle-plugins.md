@@ -45,12 +45,20 @@ bundle 插件是**独立 npm 包**（或包目录），声明 `dsh.bundle`：
 
 ## 依赖解析
 
-- `dependencies` / `peerDependencies` / `devDependencies` **三处都留空是设计**——`@deepseek-ai/*` 与 `cordis` 由 profile 的 pnpm 闭包在挂载时注入（`$DSH_HOME/profiles/node_modules` 扁平 fallback；launcher 另把一份不可变 runtime resolution 装进 Node resolver，机制见 [02-profile-and-preset.md](02-profile-and-preset.md) §1.5）
-- **不要声明官方包**：它们在公共 npm 虽可见，但自带整条 peer 闭包，单独安装必然 ERESOLVE 失败（理由、semver 预发布坑与本地 link 配方见 [13-gotchas.md](13-gotchas.md) 1）
-- 解析可达性取决于**安装位置**：只有装在 profile 树内的包能向上找到那个 fallback（见 [13-gotchas.md](13-gotchas.md) 6）
-- 本地开发要跑插件代码时，把 SDK link 进**该包自己的** `node_modules`（配方见 [13-gotchas.md](13-gotchas.md) 1），再按下面的「本地目录」安装
+依赖按用途分开，不再用「三个字段全空」判断插件是否合格：
 
-**dsh 的 peer 门槛（会直接拒挂载）**：宿主只校验 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*`
+| 用途 | 默认做法 | 验证 |
+|---|---|---|
+| 宿主提供的 SDK / Cordis / React | 运行时消费宿主实例；有构建时 external，不把另一份宿主内核或 React 打进插件 | 真实 profile 激活与功能调用；external 本身不保证 Node 可解析 |
+| 开发期类型与构建 | 无构建 JS 可不装 SDK；需要类型/编译时可在 `devDependencies` 钉一组已验证 SDK，提交 lockfile | 干净安装、构建；TS 项目再 typecheck |
+| 插件自己的第三方依赖 | 运行时仍需解析则放 `dependencies`；仅构建用或已内联则放 `devDependencies`，保留许可 | 实际 pack 后在干净 profile 安装，不借开发目录补依赖 |
+| 宿主兼容约束 | 按目标运行时支持的 `engines.dsh` / peer 预检声明，不把开发 SDK 精确版本当兼容范围 | 声明范围与实测版本分开，不能承诺未测版本 |
+
+官方包的 peer 闭包可能造成安装冲突；遇到冲突先核对包管理器、版本集合与 lockfile，不能由旧版 npm 的一次 ERESOLVE 推成「官方包必不可安装」（历史见 [13](13-gotchas.md) §1）。schema 使用 `@deepseek-ai/schemastery`（需要 `.volatile()`），其归类取决于是否内联。
+
+安装到 profile 树内与树外 `link:` 的解析行为不同；本地开发可用匹配运行时的 SDK 链接，或已验证的开发依赖。仍要用实际分发物验证宿主实例与模块解析（见 [13](13-gotchas.md) §6）。构建路线见 [16](16-engineering-patterns.md)。
+
+**dsh 的兼容预检**：目标运行时若支持 `engines.dsh`，其优先级与 peer 回退见 [02](02-profile-and-preset.md) §1.6，必须现场核对。以下是 **0.2.1-rc.1 的 peer 核查记录**：校验 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*`
 开头的 peer，用 `semver.satisfies(runtime, range, { includePrerelease: true })`；不满足就
 `dsh: skipping profile bundle "<pkg>"` 并整包不挂载（面板可见、功能全无）。两个可用写法：
 
@@ -107,12 +115,12 @@ skills（`cordis-plugin-development`、`editing-cordis-compositions`、`cordis-c
 
 **安装**：`dsh plugin --profile web add <包路径>`——`<包路径>` 必须是**可解析的 npm 包**：
 
-- **本地目录**：指向**含 `package.json#dsh.bundle` 的 bundle 包目录**（而非仓库根或源码目录），且**构建产物在库**（`lib/` 等 `files` 声明的内容已 build）：
+- **本地目录**：指向**含 `package.json#dsh.bundle` 的 bundle 包目录**；仓库根本身是 npm 包时可直接用根，有构建时先生成 `files` 声明的产物：
   ```sh
   cd packages/my-bundle && dsh plugin --profile web add .   # 包目录内 add .（dsh 锚定 . 为绝对路径）
   ```
-  ❌ 不要写仓库根（`dsh plugin --profile web add ./`）——根不是 npm 包，无 `dsh.bundle`。
-  ⚠️ **零依赖包的本地目录装有一个前置条件**：包的真实路径必须在 profile 树**外**时，官方包解析不到（Node 从包的真实路径向上找 `node_modules`）⇒ 装载期抛错、**整个 profile 起不来**。所以本地试装前先把 SDK link 进该包 `node_modules`（[13-gotchas.md](13-gotchas.md) 1），再按上面命令 add。**面向用户的安装说明只给 git 源**——别把裸的 `add .` / `add <绝对路径>` 写进 README（[13-gotchas.md](13-gotchas.md) 6）。
+  以 manifest 为准：仓库根是 npm 包时可以 `add .`；monorepo 根不含目标包才定位子包，不把样本目录结构当契约。
+  ⚠️ **树外 link 要单独验证**：Node 从包真实路径解析模块，缺 SDK 可能使条目未激活或整树失败。开发期补匹配 SDK / 链接或改装 tarball；用户安装优先已发布 npm 或验证过的 git / tarball，不能把裸本地路径当分发方式（[13](13-gotchas.md) §6）。
 - **git 源**：官方经 npm git 依赖语法解析（`github:owner/repo#<commit>&path:/<子目录>`、`git+https://github.com/owner/my-bundle.git#<commit>` 等 pnpm 语法均可用）。bundle 在 monorepo 子目录时用 **`#<commit>&path:/<子目录>`**（注意 `path:` 前缀 + 前导 `/`，实测 plugin-registry 的 console 即 `github:vlln/plugin-registry#main&path:/packages/plugin/console`）。**产物入库是推荐做法**（`lib/` 等构建产物提交进仓库，`files` 声明）——git 源安装不跑构建，产物直接可用，**真一行安装**（`dsh plugin --profile web add "github:owner/repo#ref&path:/packages/my-bundle"`，无额外步骤）。**产物不入库的备选**：带 `prepare` 脚本（如 `"prepare": "tsdown --config tsdown.config.ts"`）让 git 安装时自动构建——但 pnpm ≥10 默认阻止 git 依赖的 prepare，需按 dsh 提示把精确 key（**写入 yaml 时加引号**——含冒号，无引号 YAML 解析失败）加入 profile 的 `pnpm-workspace.yaml` `allowBuilds` 后重跑（多一步交互）。
   ```sh
   dsh plugin --profile web add "github:owner/my-bundle#<commit>&path:/packages/my-bundle"
@@ -123,13 +131,13 @@ skills（`cordis-plugin-development`、`editing-cordis-compositions`、`cordis-c
 - **两条不需要构建授权的渠道**：**npm 预构建**（`pnpm publish` 时构建好 `lib/`，用户 `dsh plugin add <pkg>` 拿到产物）与 **tarball**（`pnpm pack` 出包，用户 `dsh plugin add ./x-0.1.0.tgz`）。
 - **`allowBuilds` 的安全语义要写进安装说明**：放行 = 允许该包在安装时于用户机器上执行代码，且不在 agent 沙箱内；只对可信源码放行，并建议钉 commit（细节见 [13-gotchas.md](13-gotchas.md) 1c）。
 
-**写安装说明时**（README/skill 输出）：给出**用户能直接复制执行**的命令——本地路径写清 bundle 子目录与构建前提；git 源写清子目录语法（`&path:/`）、prepare 构建与 `allowBuilds` 放行；按目标运行时验证生效条件，不默认附加重启要求。不要给「指向仓库根」「裸本地目录」或「臆造协议」的说明。
+**写安装说明时**（README/skill 输出）：给出**用户能直接复制执行**的命令——本地路径写清 bundle 子目录与构建前提；git 源写清子目录语法（`&path:/`）、prepare 构建与 `allowBuilds` 放行；按目标运行时验证生效条件，不默认附加重启要求。不要指向非包目录、把裸本地路径当远程分发方式，或臆造安装协议。
 
 - **启停/多层归属**：同名 `cordis.patch.yml` 出现在多个层（bundle 包内声明 / profile 层 / home 层 / `--patch` overlay）别写错层，见 [13-gotchas.md](13-gotchas.md) 1b
 
 ## 验证
 
-- 挂载后 boot graph 含 bundle id；`/plugins/<id>/client.js` 200（若带 client）
+- 挂载后 boot graph 含 bundle id；若带 client，从页面提取实际声明的完整 client URL 请求成功，再验证真实 UI 交互（[13](13-gotchas.md) §21）
 - 改 Node half 源码：默认**不假设重启**——先按 HMR 条件验证（[13-gotchas.md](13-gotchas.md) 2）；不具备条件时重启兜底
 - 改 client bundle：先确保产物已重建，再验证 HMR 或页面刷新后实际加载的新代码
 

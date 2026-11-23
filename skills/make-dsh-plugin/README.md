@@ -5,11 +5,11 @@
 ## 结构纪律
 
 - `SKILL.md` 只做入口：30 秒版概念 → 路线选择 → 边界地图 → Step→文件 → 11 条纪律。**不堆细节**。
-- `references/` 用两位序号命名，序号就是目录顺序（01 概念 → 13 证据池 → 14 Desktop → 15 产品边界），但**不要求线性阅读**：每个文件在开头自报「本文件回答 / 不回答 → 去」。agent 按问题取一篇，不按顺序读。
-- **一个事实一个家**：概念在 01、装配机制在 02、契约在 04/05、纪律在 09、验证在 10、发布在 11、生态与时效数据在 12、证据在 13。别处只放指针。
+- `references/` 用两位序号命名，序号就是目录顺序（01 概念 → 13 证据池 → 14 Desktop → 15 产品边界 → 16 工程路线），但**不要求线性阅读**：每个文件在开头自报「本文件回答 / 不回答 → 去」。agent 按问题取一篇，不按顺序读。
+- **一个事实一个家**：概念在 01、装配机制在 02、契约在 04/05、纪律在 09、验证在 10、发布在 11、生态与时效数据在 12、证据在 13、工程路线与最低门禁在 16。别处只放指针。
 - 每个 reference 必须有一行「来源」（官方路径 / 实测基线 / 本 skill 自定），口径与 `SKILL.md` 的「溯源」一致。
 - 新增 reference 时：用下一个序号、加边界框、加来源、更新 `SKILL.md` 的边界地图与参考列表；**不要加"上一篇/下一篇"导航行**——agent 自己会导航。
-- `templates/` 放可复制的骨架（当前只有 `README.md`），不属于 references；不要给它编号。
+- `templates/` 放可复制的骨架（README 与双端构建配置），不属于 references；不要给它编号。
 
 ## 保鲜协议（时效知识）
 
@@ -45,6 +45,14 @@ curl -sSI --noproxy '*' https://dshmarket.com/index.json  # 逐个入口查 2xx
 **本地开发实例实测（2026-10-20，安装版 0.2.1-rc.1）**：`dsh plugin --profile web add <本地目录>` 在隔离 `DSH_HOME` 里生成 `link:` 依赖、并把 bundle 自动追加进 `dsh.profile.bundles`；`dsh web --port <n>` 的启动行打印 `http://127.0.0.1:<端口>/?token=…`（端口应固定，见 10）。**树外 link 的官方包解析**：插件自己 `node_modules` 没有 SDK 链接时实例照常启动、插件静默消失（日志 `failed to import … Cannot find package 'cordis'` + `warning: 1 entry did not activate`）；补上 `@deepseek-ai` 与 `cordis` 链接后正常装载、无警告。以上写入 [10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」。
 
 **仍保留 0.2.0-rc.2 标注（未按 0.2.1 重核）**：06 的组件逐条 props 与几何（槽位尺寸、间距）；07 的渲染契约细节（hooks 顺序、chrome 归属）；10 的图标验收路径细节；13 里 0.1.5 时段的实例与 0.2.0 迁移表。重核时按上面的「复核动作」逐条跑，并在本文件追加日期。
+
+## 工程实践提炼（2026-11-03）
+
+- 静态审阅 `dsh-share-link@c4e22e9`、`dsh-motion@9a01fd9`、`dsh-autofork@6c7f83c` 等样本；来源与短摘录在 16。本次未重跑插件功能或确认用户验收。
+- 6.0.0 将工程选型拆为直接分发 / 有构建 + 风险回归叠加层；加入自包含 tsdown 配置模板，不依赖本机兄弟仓库。
+- 统一依赖用途分层、自动/人工验证站、工具参数属性映射与 effect、MCP 装配、client 完整 URL 检查；不再要求官方依赖三字段空。
+- 纠错时正文只在所属 reference 维护；同步检查入口、清单、模板和旧摘要，不把新结论只追加进 gotchas。
+- 本轮验证：`skit validate --strict`、临时 `skit install --dir` 后校验；tsdown 0.22.2 对临时夹具实构建，验证 Host/client 输出、manifest id、factory 导出、SDK/React external 与共享输出目录。未启动 dsh、未改全局已安装 skill。
 
 ## 版本
 

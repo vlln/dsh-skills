@@ -9,20 +9,20 @@
 ## 交付检查清单（做完插件就过一遍，与是否公开发布无关）
 
 - [ ] `package.json#main`/`exports` 指向 entry；`dsh.bundle.patch` → `cordis.patch.yml`；
-      insert 行与包名同源；**依赖三字段为空**（[13-gotchas.md](13-gotchas.md) 1）
+      insert 行与包名同源；依赖用途正确、宿主模块不重复内嵌（[05](05-bundle-plugins.md)「依赖解析」）
 - [ ] 已绘制插件图标；顶层 `icon`、打包包含与 manifest 导出正确；真实 Plugins 页图片
       加载通过，且完成实际视觉检验（[SKILL.md](../SKILL.md) Step 2b；机械验证不能替代看图）
 - [ ] 带 UI 时过了 [06-ui-style.md](06-ui-style.md) 的**交付前视觉自检**：浅色/深色各看一次、
       没有写死颜色、焦点与 disabled 态齐、圆角按角色选档、能复用官方控件的地方没有自绘
-- [ ] 门禁通过（`scripts/gates/run.mjs`）——仓库自带门禁，含自证测试
+- [ ] 仓库声明的统一检查命令通过，含对应自证测试；按 [16](16-engineering-patterns.md) 选最低门禁，不要求所有项目使用同一工具链
 - [ ] README 按 [templates/README.md](../templates/README.md) 的骨架写（安装含具体 ref 与 GUI 入口、使用、能力表、配置、限制、插件管理、兼容性）；有网络/执行/写文件时含「安全与数据」
 - [ ] README 有 **`## 兼容性`** 节，写清**实测支持的 dsh 版本 + 验证日期**，且与
-      `peerDependencies` 的官方范围同源（规范见 [SKILL.md](../SKILL.md) Step 6）
+      声明的 engines/peer 范围一致（声明范围不代表全范围已测）（规范见 [SKILL.md](../SKILL.md) Step 6）
 - [ ] README **只含面向使用者的内容**——工程备忘录（机制/验证证据/踩坑）已移到
       `AGENTS.local.md`、代码注释或 `docs/engineering-notes.md`，README 只留一句指针
-- [ ] **安装冒烟含一次真实工具/命令调用**（boot 干净 ≠ 功能可用），且做过负控
+- [ ] **安装冒烟含一次真实核心功能调用（工具/命令或 UI 闭环）**（boot 干净 ≠ 功能可用），且做过负控
       （[10-install-and-verify.md](10-install-and-verify.md)「三条硬规矩」）
-- [ ] 改动在**独立实例**（新 `DSH_HOME` + `dsh web --port 0`）里跑过，URL + 测试点已交给用户手动测试
+- [ ] 发布物在临时隔离站完成安装/激活/真功能回归；有 UI 时另用持久私有开发站给用户验收，记录未测边界
       （[10-install-and-verify.md](10-install-and-verify.md)「本地开发实例」）
 
 ## 公开发布（可选）
@@ -64,8 +64,7 @@
 --add-topic <功能词> ...` 打标签。
 
 **公开发布的补充检查**：
-- [ ] 面向用户的安装说明**只给 git 源**（零依赖包的本地目录装有前置条件，见
-      [13-gotchas.md](13-gotchas.md) 6）
+- [ ] 用户安装命令指向已验证的 npm / git / tarball；本地 link 不作为分发证据（[05](05-bundle-plugins.md)）。CI / 自动发布只有真正配置并跑过才标成已验证
 - [ ] 仓库 description = 一句话"是什么 + 能干什么"（**无安装命令样板**）
 - [ ] 仓库 topics 至少含 `dsh-plugin` 与 `deepseek-harness`，另加 1-3 个功能词
 
@@ -77,7 +76,7 @@
 <h1 align="center"><img src="icon.svg" width="34" height="34" valign="middle">&nbsp;my-plugin</h1>
 ```
 
-用**仓库内相对路径**（就是 `dsh.icon` 那个文件），GitHub 直接渲染 SVG，不需要另传一份 PNG。
+用**仓库内相对路径**（就是顶层 `icon` 指向的文件），GitHub 直接渲染 SVG，不需要另传一份 PNG。
 
 **演示视频**：GitHub 的 markdown 渲染器会**剥掉 `<video>` 标签**（写 `<video src=…>` 得到空 `<p></p>`），
 只有 `user-attachments` 的 URL 会被渲染成播放器。那种 URL 只能由**上传**产生，`gh` 从 v2.99 起支持：

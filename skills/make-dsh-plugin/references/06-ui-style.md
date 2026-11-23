@@ -622,6 +622,71 @@ H = 设计外高（含边框，`box-sizing: border-box`），R = `border-radius`
 - 代表名：导航 `IconChevronDown/Left/Right/UpOutline`、`IconChevronsUpDownOutline`；动作 `IconPlus/Copy/Trash/Refresh/Search/Settings/Edit/PaperclipOutline`；状态 `IconCheckOutline`、`IconCheckCircleFill`、`IconWarningOutline`（圆）、`IconWarningTriangleOutline`（圆角三角）、`IconInfoOutline`、`IconLoadingOutline`；面板 `IconPanelLeftOutline`、`IconCompactOutline`、`IconWrapLinesOutline`/`IconNowrapFill`/`IconWrapFill`、`IconEllipsisOutline`；会话 `IconNewChatOutline`、`IconThinkOutline`、`IconPlanOutline`（默认 14）、`IconSkillOutline`；主题 `IconLight/Dark/FollowsystemOutline`
 - 本组其它原子的依赖：`StateDot`→`IconCheckOutlineRegular`；`ConnectionIndicator`→`IconCheckOutlineRegular`/`IconRefreshOutlineRegular`；`ImagePreview`→`IconLoadingOutlineRegular`
 
+### 8.5 用法规范（每个组件只有一个正确做法）
+
+> 来源：逐处核过 `ui-settings-account/SignInDialog.tsx`、`ui-schedule/TaskManagerPage.tsx`、
+> `ui-plugin-manager/PluginManagerPage.tsx`、`ui-settings-web-search/WebSearchCard.tsx`、
+> `ui-model-selection/ModelSelect.tsx`、`ui-chat/StatsPills.tsx`。
+> §8 告诉你组件存在什么 prop，本节告诉你**每个组件必须怎么调用**——凡这里写了规范值的，
+> 不要再自创第二种写法；下表查出的官方用法就是规范。
+
+**总规矩**：界面上任何可点控件一律出自本包或下列规范组合；**不许裸写原生
+`<button>` / `<select>`**（`Menu`/`MenuSurface` 的 anchor、以及在「无对应组件」位置自绘的
+座席/触发器除外，且必须照抄其官方 occupant 的 CSS）。
+
+#### `Button` — 规范用法
+- **尺寸档**：`size` 只有两档，按**控件所处的位置**定，不许自由选：
+  - **弹窗 / Modal footer**（确定、取消、确认类）：**不传 `size`（md，H36）**。
+    规范组合是 `variant="outline"` 取消 + `variant="primary"` 主操作（`SignInDialog`），
+    min-width 约 72px。
+  - **页头动作、列表行内、设置卡、密集工具区**：`size="sm"`（H28）。
+  - `size="sm"` 内的 `icon` **必须 `size={13}`**（sm 按钮文字 12px，官方全部 13，别塞默认 16）。
+- `variant` 只允许 `primary | ghost | outline | toolbar` 四值；不传 = 无框 ghost，**不要**当
+  primary 用；按钮文字必须 i18n。
+
+#### `Input` — 规范用法
+- 单行文本只用 `Input`，不要自绘 `<input>` 拼边框。
+- `className` 加在**包裹 `<span>`** 上（不是 input），改宽度/对齐就对容器做。
+- `Input` 只有单行；占位符、可访问名都要 i18n/aria，不写死。
+
+#### 下拉 / 选择 — 规范用法（**库没有 Select，规范组合如下**）
+`ui-primitives` 不导出 Select/Combobox/ConfigField。**不要写原生 `<select>`**（弹层不受主题管）。
+官方「选项下拉」的统一做法 = **`Menu` 锚定一个自绘 selector 按钮**（`WebSearchCard`）：
+
+```tsx
+<button type="button" className="selector" aria-haspopup="menu" aria-expanded={open} onClick={…}>
+  <span className="selectorLabel">{valueLabel}</span>
+  <IconChevronDownOutlineRegular className="chevron" />
+</button>
+// selector：H34 · 0.5px border-l4 · bg-layer-3 · radius-md · padding 0 12px ·
+// justify-content: space-between · chevron label-tertiary
+<Menu open={open} portal autoFocus minWidthFromAnchor selectedId={value}
+      items={…} onSelect={…} onClose={…} anchor={selector} />
+```
+
+- **选项卡片**：`items` 里用 `{type:'label'}` 当分组头 + 每项 `label` 用双行
+  （`菜单-item`：主名 `label-primary` 13px/500 + 副描述 `label-tertiary` 12px），
+  与 `ModelSelect` 的 `MenuGroup` + 双行 `option` 同族；选中态交给 `selectedId`（自带 ✓），
+  不要自己画填充底。
+- **可输入+建议**（既要自由输入又要建议列表）：`Input` + 尾部 ghost chevron `button` 开 Menu；
+  **anchor 用包住 Input 的整行容器**——`minWidthFromAnchor` 量的是 anchor 元素宽，拿 24px
+  按钮当 anchor 会得到 24px 宽的菜单。
+- 选项 ≤3 且属于「模式切换」时改用 `SegmentedControl`，不用 Menu。
+
+#### `Modal` — 规范用法
+- footer 用 §Button 规范（outline + primary，md）；`onClose`/`closeLabel` 必填。
+- **弹窗内的条件分区固定高度**：`SegmentedControl`/Switch 切换字段集时，把条件字段包进
+  `min-height = 最高分支` 的分区容器（flex column + 固定 gap，高度 ≈
+  `N×(label 17 + gap + 控制件 32/34)` 实测取整）——否则切档时 footer 从鼠标下跑掉。
+
+#### 座席 / 触发器（库里没有对应组件的位置）
+- `conversation.composer.dock` 小 pill 照抄 `ui-chat/StatsPills.module.css`
+  （padding `1px 8px` · `radius-sm` · hover/expanded `interactive-bg-hover` + `label-secondary`
+  · tabular-nums）；`conversation.hero.options` 行是 `flex + gap:2px`，触发器 H28/`radius-sm`。
+- 侧栏 `sidebar.panellist` 图标用 productIcon 风格（16×16 viewBox、1px `currentColor` 描边、
+  `strokeLinecap/join round`）；**精灵表没有的字形自绘内联 SVG，别拿语义不符的现成 icon 凑**
+  （官方无电脑/服务器字形）。
+
 ## 9. 落位与容器对齐
 
 > 来源：`docs/subsystems/slots.md`（槽位层级与 cardinality/scope）；

@@ -33,27 +33,17 @@
 | 界面上出现 `blocked`、`summary` 这类字面量 | §17 |
 | README 里视频不出来 / `<video>` 渲染成空白 | §18 |
 
-## 1. 官方包在 npm 可见，但不能单独安装
+## 1. 官方 SDK 的 peer 闭包与开发依赖
 
-`@deepseek-ai/*` 在公共 npm 可见，但官方包之间是一整条 **peer 闭包**（实测 `@deepseek-ai/dsh-tools@0.1.2-rc.1` 带 9 个 peer：`cordis`、`dsh-agent`、`dsh-code-runtime`、`dsh-invariants`、`dsh-llm`、`dsh-session`、`dsh-scope`、`dsh-system-prompt`、`dsh-user-approval`）。`npm install` 直接 ERESOLVE：
+**历史实测**：`@deepseek-ai/dsh-tools@0.1.2-rc.1` 带多项官方 peer，单独用当时的 npm 安装曾报 ERESOLVE（`cordis` / `dsh-agent` 等版本冲突）。这证明要核对整组版本，**不证明所有 SDK、包管理器和版本都必然失败**。
 
-```
-Could not resolve dependency: peer @deepseek-ai/cordis@"^4.0.2" from @deepseek-ai/dsh-agent
-```
+**2026-11-03 静态复核**：近期插件采用两条路线——直接分发 JS、从宿主解析 SDK；或构建时 external 宿主模块、为开发类型/构建安装匹配的 SDK。来源及边界在 [16](16-engineering-patterns.md)，依赖规则唯一口径在 [05](05-bundle-plugins.md)「依赖解析」。本次没有重新运行这些插件的安装/测试。
 
-要装通就得把整条闭包声明进来，等于把插件版本与官方版本硬耦合。**纪律**：三个依赖字段留空，官方包由挂载环境的 pnpm 闭包提供（见 [09-dev-conventions.md](09-dev-conventions.md) 第 1 条）。本地跑测试/构建需要它们时用 link，不要声明：
+本地 link 需要 SDK 时可在包自己的 `node_modules` 建开发链接，但不能覆盖既有真实目录；解析源从目标安装版现场取。开发 SDK 安装成功也不证明分发物在宿主里用的是正确实例。
 
-```sh
-DSH_AI="$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai"
-mkdir -p node_modules/@deepseek-ai
-ln -s "$DSH_AI/dsh-tools" node_modules/@deepseek-ai/dsh-tools
-```
-
-需要 SDK 的测试要在它缺席时**优雅跳过**（`test(name, { skip: … }, fn)`）并写明原因，否则裸 clone 的 `node --test` 报解析错，贡献者以为仓库坏了。
-
-- **semver 预发布**：`0.2.0` / `^0.2.0` 匹配不到 `0.2.0-rc.2`；真要钉 devDeps 须写全后缀（但更该留空）。
-- **正式分发**：`github:owner/repo#<ref>`，依赖由官方安装环境解析。
-- **判断**：本地 `npm i` / `npm test` 的依赖失败不是你的错——改验证方式，别改依赖声明。
+- semver 预发布必须显式带后缀，普通稳定版范围未必接受 rc。
+- 可选本地检查缺依赖可明确跳过并报告未验证；必跑 CI 的真实宿主测试缺依赖必须失败。
+- 不能为迎合安装器把宿主 SDK 打成第二份内核/React；排查版本集合与解析路径，而非一概清空依赖。
 
 ### 1a. 看到 `.dsh-plugin` / `dsh-repository-plugin` 的仓库
 
@@ -120,21 +110,23 @@ npm 上是 lib 生产模式（`npx -p @deepseek-ai/dsh@<版本> dsh web`）。�
 - **严格注入**：`ctx.get` 未在 `inject` 声明的服务 → apply 开头抛 `cannot get property without inject`，整个 effect 不注册（路由全 fallback 成 SPA 主页）。
 - **工具 schema DSL 违规在挂载时暴露**：CLI enable 只校验名称；`defineTool` 的 value-schema 违规在 web boot / 面板 enable 时暴露。
 
-## 6. 安装位置决定官方包可达性（树外安装拖垮整个 profile）
+## 6. 安装位置影响 SDK 可达性（不能只看宿主是否启动）
 
 官方包的解析源是 `$DSH_HOME/profiles/node_modules/`（含 `@deepseek-ai/*`）。ESM 从包的**真实路径**逐级向上找 `node_modules`：
 
 | 安装形态 | 包的真实路径 | 结果 |
 |---|---|---|
-| git 源 | `<profile>/node_modules/<pkg>` | 向上命中 → **正常装载** |
-| 本地目录（树外） | `/tmp/…` 等 | 永远到不了 → **装载期抛错** |
+| git / npm / tarball | profile 管理的包目录 | 验证宿主解析与实际激活；不借开发目录补依赖 |
+| 本地目录（树外 link） | profile 外真实目录 | 可能缺 SDK，需开发依赖/链接或改用分发物安装 |
 
 ```
 dsh: plugin tree failed to load: failed to import loader entry <id> (<pkg>):
 Cannot find package '@deepseek-ai/dsh-tools' imported from /abs/path/src/index.mjs
 ```
 
-**写安装说明**：零依赖包只给 **git 源**；本地目录安装只用于开发自测，并写清前置条件（先把 SDK link 进包自己的 `node_modules`，见 §1）。推论：**"git 源能装"不能反推"本地目录能装"**，验证要按实际分发形态做。
+上面是早期整树失败的日志形状；0.2.1-rc.1 的后续记录也有「宿主正常启动、插件 `did not activate`」的形状（见 [10](10-install-and-verify.md)）。不要把一种错误表现当作跨版本保证。
+
+**写安装说明**：已发布 npm 优先，其次已验证 git / tarball；本地 link 只作开发自测。**一种渠道能装不能反推另一种也能装**，真实分发物要单独验证。
 
 ## 7. 服务名跨 rc 漂移 → 静默功能死
 
@@ -400,7 +392,7 @@ chip 几何是宿主 CSS：`.tab { flex: 0 1 auto; min-width: 80px; max-width: 1
 
 ## 21. 插件 client bundle 的手测 URL 带两个问号（`??`）（0.2.1-rc.5 实测）
 
-Step 5 的检查点写「`/plugins/<id>/client.js` 200」——0.2.1-rc.5 上这个形式直接请求是 404。
+旧检查点曾写「`/plugins/<id>/client.js` 200」——0.2.1-rc.5 上这个形式直接请求是 404；入口与清单已改为取页面中的完整 URL。
 真实形式里 `?` 是**两个字面字符**（`??` 是 client-modules 的 URL 编码约定，不是笔误）：
 
 ```text

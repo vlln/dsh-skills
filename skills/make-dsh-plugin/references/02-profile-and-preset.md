@@ -73,14 +73,14 @@ dsh --profile web --dump-config-schema    # 插件 Config 的 JSON Schema（会 
 - **卸**：退出列表 + `pnpm remove`。
 - **启停**：只改 profile patch 里的 `disabled`；**bundle 开关改 bundles 列表**。关闭保留依赖；**开启追加到列表末尾 ⇒ 可能改变层优先级**（后应用的 bundle 覆盖前面的行）。
 - `OPTIONAL_BUNDLES`：随安装提供、默认关闭、永不卸载、任何随附模板都不选中的 experimental bundle（插件页可开）。
-- **重启边界**：bundles 列表变化要重启 profile 才生效（装 / 卸 / 升级 bundle）；profile 与 home patch 的普通编辑在有 HMR 时热应用。**重装同版本 ≠ 代码热更新**。
+- **生效边界**：bundles 列表 / patch 变化在有 HMR 时可触发协调；按目标运行时验证实际挂载状态，不默认要求重启。**重装同版本 ≠ 代码热更新**；详情只在 [10](10-install-and-verify.md)「验证按改动面」维护。
 
 ### 1.5 解析与安装位置（为什么必须装进 profile）
 
 - bundle 解析顺序：**先 dsh 安装目录，再 profile 目录**；随附 bundle 始终来自当前运行的那个 dsh。
 - 挂载前 launcher 算一份**不可变 runtime resolution** 装进 Node 的 ESM/CJS resolver（不建 fallback 链接）：安装优先 + 按 bundles 顺序做依赖图 BFS。
 - profile 的 node_modules 由 pnpm 管理；`nodeLinker: hoisted` 让树外插件拿到扁平 node_modules，缺的 peer 走 runtime resolution ⇒ 全 profile 共用一个 cordis 实例（这正是官方 `pnpm-workspace.yaml` 模板存在的原因）。
-- 实践结论：**装进 profile 树内才有官方包可解析**；从树外目录装（本地 `add /abs/path`）会让**整棵 profile 起不来**（现象与本地自测配方见 [13-gotchas.md](13-gotchas.md) 6）。
+- 实践结论：树外 `link:` 的真实路径可能找不到 SDK；宿主启动不代表插件激活。安装位置与开发依赖策略要分别验证（现象见 [13](13-gotchas.md) §6；依赖分工见 [05](05-bundle-plugins.md)）。
 
 ### 1.6 兼容性与跳过
 

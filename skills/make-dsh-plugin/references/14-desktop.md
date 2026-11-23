@@ -40,7 +40,7 @@
 ## 3. 调试：DevTools 是开着的
 
 - `F12`（多媒体键盘 `Fn+F12`）、macOS `Cmd+Option+I`、Windows `Ctrl+Shift+I` 打开当前应用页面的 DevTools，**打包版也支持**。
-- 能看 `__DSH_BOOT__`、client bundle 是否加载、`/plugins/<id>/client.js` 请求、`data-*` 属性与 console 报错——Web 上的排查手法照用。
+- 能看 `__DSH_BOOT__`、client bundle 是否加载、页面实际声明的 client URL 请求（不手拼路径，见 [13](13-gotchas.md) §21）、`data-*` 属性与 console 报错——Web 上的排查手法照用。
 - 例外：更新遮罩与打包版的内嵌浏览器**禁用** DevTools。
 
 ## 4. 文件与资源边界
@@ -74,8 +74,8 @@ Desktop 的启动是**全有或全无**：一个第三方插件加载失败会�
 ## 8. 在 Desktop 上验证插件的清单
 
 - [ ] 从应用内 Plugins 页安装成功（不是终端 `dsh plugin` 到别的 profile）
-- [ ] 开 DevTools：`__DSH_BOOT__` 有本插件的 client 行，`/plugins/<id>/client.js` 有响应
-- [ ] 真调一次工具/命令（boot 干净 ≠ 功能可用）
+- [ ] 开 DevTools：`__DSH_BOOT__` 有本插件的 client 行，用页面声明的完整 client URL 得到有效响应
+- [ ] 真调一次核心功能（工具/命令或 UI 闭环；boot 干净 ≠ 功能可用）
 - [ ] 关掉再打开应用一次，配置与状态还在
 - [ ] README 的兼容性一节写的是**应用版本**对应的 dsh 版本 + 验证日期
 - [ ] 如果是 UI 插件：深浅色各看一次（Desktop 跟随系统外观）

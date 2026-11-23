@@ -57,12 +57,12 @@ $DSH_HOME/profiles/web/          ← profile：装配 + 安装/解析边界
 
 | 改了什么 | 怎么生效 |
 |---|---|
-| `dsh.profile.bundles` 列表（装 / 卸 / 升级 bundle） | **重启 profile** |
+| `dsh.profile.bundles` 列表（装 / 卸 / 升级 bundle） | 按 HMR / 协调能力验证挂载，必要时重启（→ [10](10-install-and-verify.md)） |
 | profile 或 home 的 `cordis.patch.yml` | 启用 HMR 时热应用；否则重启 |
 | preset 声明（`config.plugins` / 元数据） | 之后**新建**的 Agent 用新代际；已有会话保留旧代际 |
 | 会话选 preset | 只有**空白会话**能换；首个 turn 开始后锁死（`agent-preset/locked`） |
 | 恢复会话 | 按记录的 preset id 找**当前**定义；定义不存在 ⇒ 拒绝恢复 |
-| 装到 profile 树外 | 官方包解析不到 ⇒ **整棵 profile 起不来** |
+| 树外 link 开发 | 真实路径可能缺 SDK；宿主启动不代表插件激活（→ [05](05-bundle-plugins.md) / [13](13-gotchas.md) §6） |
 
 ## L4 术语对照
 

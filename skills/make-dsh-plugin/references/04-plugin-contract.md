@@ -45,7 +45,7 @@ my-plugin/
 ```
 
 - **`dsh.bundle.patch`**：`string | string[]`——指向 `cordis.patch.yml`（组合层，含 `- insert: - id: <自身> name: <包名>`），或一组按序拼接的 patch 文件；声明即 bundle，进 profile 层栈（数组形态官方 web-app 用它同时分发宿主行与 4 个 agent preset，见 [02-profile-and-preset.md](02-profile-and-preset.md)）
-- **`dsh.client`**：`platform: web`——client-modules 只扫描声明它的包（无声明不进 `__DSH_BOOT__`）。其余字段：`inject`（消费的其他 client 模块）、`external`（本行消费的 client 包，用于排模块图顺序；**不得声明自己**）。client 包 extends `tsconfig.base.client.json` 并用共享 tsdown preset（`packages/client/tsdown.client.ts`）
+- **`dsh.client`**：`platform: web`——client-modules 只扫描声明它的包（无声明不进 `__DSH_BOOT__`）。其余字段：`inject`（消费的其他 client 模块）、`external`（本行消费的 client 包，用于排模块图顺序；**不得声明自己**）。独立插件的构建配方见 [16](16-engineering-patterns.md)，不要求依赖官方源码树的共享 preset
 - **`exports["./client"]`**：client bundle 路径（`__ModuleLoader__.load` 注册的构建产物）
 - **`main`/`exports["."]`**：指向 Cordis entry（`name`/`inject`/`apply`）
 - **`icon`（顶层）**：SVG / PNG / JPEG / WebP，**≤ 256 KiB**，路径相对 manifest，realpath 后必须仍在包内——Plugins 页标识（绘制要求见 [SKILL.md](../SKILL.md) Step 2b）
@@ -56,7 +56,7 @@ my-plugin/
 
 ### dsh.skills（skill 包）
 
-`SKILL.md` 文件放 `skills/<name>/`，在 `dsh.skills` 声明（相对包根路径）：
+`SKILL.md` 文件放 `skills/<name>/`。下面是历史前向声明，**不作为安装配方**（无消费方）：
 
 ```json
 "dsh": { "skills": ["./skills/foo/SKILL.md", "./skills/bar/SKILL.md"] }
@@ -85,22 +85,22 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import z from '@deepseek-ai/schemastery'
 
 export const name = 'my-plugin'
-export const inject = ['webServer', 'tools']
+export const inject = ['tools']
 /** 可选：声明设置面——条目 id 即设置命名空间；live 字段标 .volatile()。 */
 export const Config = z.object({ myFlag: z.boolean().default(true).volatile() })
 export function apply(ctx, config) {
-  ctx.tools.register(defineTool({
+  ctx.effect(() => ctx.tools.register(defineTool({
     name: 'my_tool',
     description: 'What it does.',
-    parameters: { type: 'object', properties: {} },
+    parameters: {}, // 属性名 → 值 schema；空参数不是完整 object schema
     output: { schema: { type: 'string' } },
     execute: async () => 'result',
-  }))
+  })), 'my-plugin: tool')
 }
 ```
 
 - 能力上限是完整 Cordis——事件（`ctx.on`）、服务（`ctx.provide`）、命令、system prompt、TUI，无需声明。
-- **依赖解析**：entry 可 import 官方包（`@deepseek-ai/*`、`cordis`），官方运行时经 profile pnpm 闭包注入（`$DSH_HOME/profiles/node_modules` 扁平 fallback）；**`dependencies`/`peerDependencies`/`devDependencies` 三处都留空**——官方包虽在公共 npm 可见，但自带整条 peer 闭包，单独安装一定失败（细节与本地 link 配方见 [13-gotchas.md](13-gotchas.md) 1）。解析可达性依赖安装位置（profile 树内可达），见 [13-gotchas.md](13-gotchas.md) 6。
+- **依赖解析**：消费宿主 SDK，不内嵌第二份内核或 React；开发 SDK、第三方依赖、兼容声明各自归位，唯一口径见 [05](05-bundle-plugins.md)「依赖解析」。树外 link 还需验证真实路径下的模块解析（[13](13-gotchas.md) §6）。
 - **注册是 effect**：`ctx.tools.register` 返回 disposer，用 `ctx.effect()`/`ctx.on()` 持有生命周期，disable 时清理。
 - **必须命名导出**：`name` / `inject` / `apply`（以及 `Config`）要挂在**命名导出**上，不要写成
   `export default { name, inject, apply }`——loader 的 `unwrapExports` 会取 `exports.default`
