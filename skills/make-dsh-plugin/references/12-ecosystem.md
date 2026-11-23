@@ -82,6 +82,37 @@ gh discussion create --repo deepseek-ai/deepseek-harness \
 2. **`dsh-plugin` topic 被大量无关项目占用**：按 topic 抓取的目录（包括 dshbase）里常见并非 dsh 插件的大项目；判断标准是它是否真声明 `dsh.bundle` / 是否真在 dsh 里跑起来。
 3. **两个名字很像的站**：`dshmarket.com`（市场索引）与 `dsh.market`（应用内市场）不是同一个，别混。
 
+### 投稿渠道：awesome-dsh-plugin（PR 收录）
+
+`awesome-dsh-plugin/awesome-dsh-plugin` 是社区最大的精选列表，同时兼任市场索引源（README 顶部的
+`cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json` 等三个入口是同一份 format-1 索引）——**一条 PR
+换来列表页 + 三个市场的曝光**，是公开发布后的主流曝光渠道。投稿流程（以仓库的
+`contributing.md` 为准）：
+
+1. **PR 只加一个文件** `data/plugins/<owner>__<repo>.yml`（monorepo 子包
+   `owner__repo--packages-<sub>.yml`，`url` 指向子目录、`name` 用 `owner/repo#sub`）：
+
+   ```yaml
+   url: https://github.com/owner/repo
+   name: owner/repo
+   category: tools               # 完整取值见 contributing.md
+   description:
+     en: One-line description ending with a period.   # 必填；含 ": " 要加引号
+     zh: 一句话描述，以句号结尾。                       # 可省，维护者会补
+   # tarball / icon 可选，规则见 contributing.md
+   ```
+
+2. **门槛**：仓库 `package.json` 声明 `dsh.bundle`（只声明 `dsh.client` 是最常见拒因）；仓库创建满 1 天；
+   真实可装的代码；打 `dsh-plugin` topic；描述只写事实、**会被对着代码逐条核对**（写「46 个工具」就要真有 46 个）。
+3. **一个 PR 最多 3 条**；多个自家插件要拆开投，且只投最值得留的那几个。
+4. README 由脚本生成，**不要手改**；被打回（`held: author`）时修复推到同一分支 + 留一条评论即可。
+5. **npm 关联是自动的**：发 npm 后 `repository` 字段指回本仓库即被采集，不要在 yml 里手写 `npm:`。
+6. **截图在自家仓库声明**：`package.json` 旁放 `screenshots.json`（1–8 张，相对路径）；市场详情页读它。
+7. **纯聚合包不收录**（只列依赖、自身无行为的 bundle）；依赖必须指向原作者仓库或其 npm 包。
+
+⚠️ 对外投稿是**对外的公开动作**（PR 署名作者、永久公开）：动手前先拿到用户明确同意，与 §C
+Discussions 发帖同一纪律。
+
 ## E 发现与参考实现
 
 ```sh

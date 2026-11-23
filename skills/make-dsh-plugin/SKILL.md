@@ -11,7 +11,7 @@ description: >
 license: MIT
 metadata:
   author: vlln
-  version: "5.3.1"
+  version: "6.0.0"
 requires:
   bins:
     - dsh
@@ -39,8 +39,8 @@ Step 3 Node half → Step 4 client half（可选）→ Step 5 安装与验证 �
 
 **权威契约内嵌在本 skill 的 `references/`，按主题编号取用**（`01` 概念 · `02` 装配 · `03` 配方 ·
 `04` 契约 · `05` bundle · `06` UI · `07` 设置 · `08` i18n · `09` 纪律 · `10` 验证 ·
-`11` 发布 · `12` 生态 · `13` 证据池 · `14` Desktop）——**不必线性读**，按第 2 节的边界地图取一篇即可；
-开发不需要任何仓库文档（`06-ui-style.md` 是查阅型手册，按章查）。
+`11` 发布 · `12` 生态 · `13` 证据池 · `14` Desktop · `15` 产品边界 · `16` 工程路线）——**不必线性读**，按第 2 节的边界地图取一篇即可；
+开发不依赖本机兄弟仓库（`06-ui-style.md` 是查阅型手册，按章查）。`$_S` 表示本 skill 根目录，执行模板/脚本前替换为实际路径，不按插件 cwd 解析。
 
 ## 0. 30 秒版（够开工）
 
@@ -71,13 +71,14 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 
 | 路线 | 顺序 |
 |---|---|
-| **A 加一个工具 / 命令 / 面板** | [04](references/04-plugin-contract.md) →（有 UI）[06](references/06-ui-style.md) → [10](references/10-install-and-verify.md) |
+| **A 加一个工具 / 命令 / 面板** | [16](references/16-engineering-patterns.md) 选工程路线 → [04](references/04-plugin-contract.md) →（有 UI）[06](references/06-ui-style.md) → [10](references/10-install-and-verify.md) |
 | **B 发一个新的模式（preset）** | [02](references/02-profile-and-preset.md) §2 → [03](references/03-vertical-agent-recipe.md) 第 2 步 → 新开会话验证 |
 | **C 从零搭一个垂直 Agent** | [03](references/03-vertical-agent-recipe.md) 全文 → [04](references/04-plugin-contract.md) / [05](references/05-bundle-plugins.md) 写包 → [06](references/06-ui-style.md) 做 UI → [10](references/10-install-and-verify.md) 装 |
 | **D 发布与被发现** | [11](references/11-publish.md) 交付/发布 → [12](references/12-ecosystem.md) 市场与社区 |
 | **E 装不上 / 行为怪** | [10](references/10-install-and-verify.md) 排查 → [13](references/13-gotchas.md) 对症状 |
 | **F 理解 dsh 机制** | [01](references/01-concepts.md) 概念 → [02](references/02-profile-and-preset.md) 装配 |
 | **G 在 Desktop 上装 / 调** | [14](references/14-desktop.md)（应用内插件页、版本跟应用走、DevTools） |
+| **H 已有插件 / 抽取工程底座** | [16](references/16-engineering-patterns.md) 先审已有实现，再补最小缺口 |
 
 ## 2. 边界地图（一个问题 = 一个文件）
 
@@ -96,17 +97,18 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 | 09 | [dev-conventions](references/09-dev-conventions.md) | 11 条纪律 + 门禁 / 决策 / 兼容性 | 证据 → 13；操作 → 10 |
 | 10 | [install-and-verify](references/10-install-and-verify.md) | 安装、验证、负控、图标验收、排查 | 发布 → 11；纪律 → 09 |
 | 11 | [publish](references/11-publish.md) | 交付清单、description / topics | 市场社区 → 12；验证 → 10 |
-| 12 | [ecosystem](references/12-ecosystem.md) | 市场索引机制、社区入口、生态目录与工具、参考实现 | 发布纪律 → 11 |
+| 12 | [ecosystem](references/12-ecosystem.md) | 市场索引机制、社区入口、生态目录与工具、awesome 投稿渠道、参考实现 | 发布纪律 → 11 |
 | 13 | [gotchas](references/13-gotchas.md) | 实测坑与症状 | 纪律 → 09；验证 → 10 |
 | 14 | [desktop](references/14-desktop.md) | Desktop 的安装归属 / 版本 / 调试 / 恢复 | 通用安装验证 → 10；UI → 06 |
 | 15 | [product-boundaries](references/15-product-boundaries.md) | 产品边界：数据放哪、向 agent 暴露什么、工具面还是 skill+命令、面板与会话的关系 | 字段与契约 → 04；验证 → 10 |
+| 16 | [engineering-patterns](references/16-engineering-patterns.md) | 直接分发 / 双端构建、回归增强、按改动面选门禁 | 依赖策略 → 05；验证站操作 → 10 |
 
 ## 3. Step → 文件
 
 | Step | 本步只读 | 产出 |
 |---|---|---|
 | 0 选形态 | 01 / 02（做内容型插件再加 15） | 形态 + 安装通道（三判据） |
-| 1 仓库布局 | 04 | 目录骨架 |
+| 1 仓库布局 | 16 → 04 | 保留成熟实现 / 选择最小工程底座 |
 | 2 manifest | 04（+05 打包时） | `package.json` + patch |
 | 2b 图标 | 10（图标节） | `icon.svg` + 真实加载验证 |
 | 3 Node half | 04 | entry + 工具/服务 |
@@ -122,17 +124,17 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 
 | # | 纪律 | 为什么 |
 |---|---|---|
-| 1 | 官方包 `dependencies` / `peerDependencies` / `devDependencies` 三处留空 | 官方包自带整条 peer 闭包，声明必 ERESOLVE（[13-gotchas.md](references/13-gotchas.md) 1） |
-| 2 | 插件必须装进 profile 树内 | 树外解析不到官方包 ⇒ **整棵 profile 起不来**（[13-gotchas.md](references/13-gotchas.md) 6） |
+| 1 | 依赖按宿主运行时 / 开发 SDK / 第三方 / 兼容约束分工 | 不内嵌第二份宿主内核或 React；不以三字段空替代验证（[05](references/05-bundle-plugins.md)） |
+| 2 | 在实际分发安装位置验证解析 | 树外 link 可能缺 SDK；宿主可启动但插件未激活（[13](references/13-gotchas.md) §6） |
 | 3 | 启停覆盖写 profile 层，不写进 bundle 包内 | 产品层不该承载用户偏好（[13-gotchas.md](references/13-gotchas.md) 1b） |
 | 4 | 覆盖某行必须重述整块 `config` | patch 是整行替换，不是深合并 |
 | 5 | `config.id` 是身份，发布后不改；行 id 用 `preset-<id>` | 老会话按 id 恢复，改了就拒绝恢复 |
 | 6 | 改动按改动面取**最窄**证据，并先做负控 | "干净日志"只有在故意弄坏会响亮报错时才算证据（[10-install-and-verify.md](references/10-install-and-verify.md)） |
-| 7 | boot 干净 ≠ 功能可用：真调一次工具/命令 | 服务惰性读取，服务名写错在 boot 期看不见 |
+| 7 | boot 干净 ≠ 功能可用：真调一次核心功能 | 服务惰性读取，服务名写错在 boot 期看不见 |
 | 8 | 资产从安装包解析，不读 profile / preset 目录 | preset 没有自己的目录（[02-profile-and-preset.md](references/02-profile-and-preset.md) §2.6） |
 | 9 | 机制带版本号；渠道 / 社区 / 生态现状**只进 12**（时效数据），并写"是什么/怎么用"而不是"最新/N 个" | 无日期的时效断言会烂掉；实测记录不会 |
 | 10 | README 只写使用者内容；工程备忘录进 `AGENTS.local.md` / `docs/` | 读者不对，关键信息会被淹掉（Step 6） |
-| 11 | 开发实例 = 独立进程 + **持久的私有 `DSH_HOME`**（`~/.dsh-<插件>`，建一次、复用、不删）+ **固定端口**（只挑一次、存进 home、永远复用，避开 3080）；**永不指向 `~/.dsh`**；URL + 测试点交给**用户手动测试** | 每次新建 home 会丢会话；每次换端口会让旧 URL 全部失效（用户以为进程死了）；复用真实 home 会与主 GUI 抢写会话日志（[10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」） |
+| 11 | 自动回归用临时隔离站；人工验收用持久私有站、稳定端口；都不碰主 GUI | 两种环境分别保证干净与会话连续；权限/清理以项目规则为先（[10](references/10-install-and-verify.md)） |
 
 ## 何时使用
 
@@ -180,6 +182,8 @@ Agent 循环（那是宿主）；权限预设是第三件事。展开见 [01-con
 
 ## Step 1：仓库布局
 
+先读 [16](references/16-engineering-patterns.md)：已有项目先识别成熟实现；新项目默认直接分发 JS，有编译需求才读 `$_S/templates/tsdown.config.mjs` 并适配复制到目标包根。真实宿主回归是叠加层，不是第三种包形态。
+
 `my-plugin/` 根即 npm 包（bundle 形态包根 = 仓库根）：
 
 ```
@@ -200,8 +204,7 @@ my-plugin/
 - `dsh.bundle.patch` → `cordis.patch.yml`（组合层，含 `- insert: - id: <自身> name: <包名>`）
 - `dsh.client` 声明（platform web）+ `exports["./client"]`（有 client half 时）
 - `main`/`exports["."]` 指向 Cordis entry（`name`/`inject`/`Config`/`apply`）
-- `dependencies`/`peerDependencies`/`devDependencies` **三处都留空**——官方包由挂载环境注入（理由与本地 link 配方见 [13-gotchas.md](references/13-gotchas.md) 1）；唯一例外是 schema 要用 dsh 的 fork
-  `@deepseek-ai/schemastery`（公共 `schemastery` 没有 `.volatile()`），装成普通 `dependencies`
+- 依赖策略唯一口径在 [05](references/05-bundle-plugins.md)「依赖解析」：运行时消费宿主模块；编译/类型 SDK 可进开发依赖；第三方是否内联决定其归类。
 - `inject` 声明 `ctx.get` 用到的全部服务（`webServer`/`jobs` 等）。**严格注入两个方向都会出事**：
   - **声明了但宿主没有**（名字写错、或该服务已被新 rc 移除）→ 条目**永久 pending**，
     boot 日志只有一行 `warning: 1 entry did not activate`，该插件的功能与 UI 一起消失；
@@ -212,11 +215,9 @@ my-plugin/
   `meta.title` / `meta.description`，并把 `"./locale/*.json"` 同时加进 `exports` 与 `files`
   ——少了 `files` 发布出去就丢（写法与回退链见 [08-i18n.md](references/08-i18n.md) §2）
 
-### Skill 包（`dsh.skills`）与 MCP server（`dsh.mcpServers`）
+### Skill 与 MCP 的实际装配
 
-声明写法（`dsh.skills` 相对路径列表 / `dsh.mcpServers` 的 server-id → 启动
-配置映射）与 SKILL.md 写法规范（frontmatter / 正文模式 / <500 行，遵循
-make-skill）见 `references/04-plugin-contract.md` 对应小节——不要发明竞争格式。
+skill 走发现根，或由代码显式注册；`dsh.skills` 不能代替注册。MCP 由 patch 行配置，不存在 `dsh.mcpServers` manifest 入口。细节见 [04](references/04-plugin-contract.md)。
 
 ## Step 2b：绘制插件图标（必做）
 
@@ -237,8 +238,7 @@ make-skill）见 `references/04-plugin-contract.md` 对应小节——不要发�
 ## Step 3：Node half——Cordis entry
 
 `index.mjs` 导出完整 Cordis 插件（`name`/`inject`/`apply`）。用 `defineTool`
-注册工具；服务/事件/命令/prompt 是完整 Cordis，无需声明。依赖解析是官方
-运行时的职责（`@deepseek-ai/*`、`cordis`——profile pnpm 闭包注入，勿声明）。
+注册工具；服务/事件/命令/prompt 是完整 Cordis，无需声明。宿主模块与开发期 SDK 的分工见 [05](references/05-bundle-plugins.md)「依赖解析」。
 在 `ctx.effect()`/`ctx.on()` 内注册，disable 时清理。
 
 **检查点**：entry 可解析；工具已注册；inject 声明完整；**在真实 profile 里启动过一次**
@@ -253,8 +253,7 @@ bundle 经 `__ModuleLoader__.load({id, factory})` 注册（factory 返回
 
 `dsh.client` 的其余字段：`inject`（声明消费的其他 client 模块）、**`external`**
 （声明本行消费的 client 包，client-modules 用它排模块图顺序；**不得声明自己**——同包自引用会抛
-`a row must not declare its own package in dsh.client.external`）。client 包用共享构建形态：
-extends `tsconfig.base.client.json` + 共享 tsdown preset（`packages/client/tsdown.client.ts`）。
+`a row must not declare its own package in dsh.client.external`）。官方仓库内部可用共享 preset；独立插件不依赖上游 checkout，构建形态见 [16](references/16-engineering-patterns.md)。
 
 构建：esbuild/tsdown CJS 输出 + 外层 `window.__ModuleLoader__.load` 包装（对齐
 官方 preset 的 banner/footer 模式）。
@@ -278,8 +277,7 @@ key = 包名）；live 字段标 `.volatile()`，保存即生效、不重挂载�
 （槽选择、读写语义、四处同名不变量、验证步骤）见
 `references/07-settings-panel.md`；实测参考实现 `vlln/whale-girl` 的配置卡片。
 
-**检查点**：`__DSH_BOOT__` 含 client 行；`/plugins/<id>/client.js` 200；无
-`loaded without registering` 报错。
+**检查点**：`__DSH_BOOT__` 含 client 行；从页面取其完整 URL（不要手拼）请求成功；浏览器无 `loaded without registering`，并真操作一次 UI（[13](references/13-gotchas.md) §21）。
 
 ## Step 5：安装与验证
 
@@ -297,133 +295,49 @@ key = 包名）；live 字段标 `.volatile()`，保存即生效、不重挂载�
 
 **写安装说明时必须给出用户可直接复制的命令**；验证按改动面与挂载失败排查见 `references/10-install-and-verify.md`。
 
-**开发与每次改动后都起独立实例验证**（用户 2026-10 定调）：新 `DSH_HOME`（默认不碰 `~/.dsh`）
-+ `dsh web --port 0`，URL 与测试点交给**用户手动测试**——不复用用户 GUI（默认 3080）与真实
-`~/.dsh`；交接前先确认插件真挂上了（**URL 能打开 ≠ 插件在**，见 [10-install-and-verify.md](references/10-install-and-verify.md)「本地开发实例」）。
+**两种隔离站不要混用**：自动回归临时 home + 随机端口；手动验收持久私有 home + 稳定端口。均不复用主 GUI；操作与安全边界只在 [10](references/10-install-and-verify.md) 维护。URL 能打开不等于插件已激活。
 
 **三条硬规矩**（该文件详述，这里先记住结论）：
 
 1. **boot 干净 ≠ 功能可用**——依赖解析失败、服务名写错在 boot 期看不见（服务惰性读取），
-   **必须真调一次工具/命令**；
+   **必须经真实入口调用一次核心功能**（工具/命令或 UI 闭环）；
 2. **先做负控**——装一份故意弄坏的副本，确认日志会响亮报错；只有负控响过，"干净日志"
    才算证据；
 3. **mock ctx 单测不能替代真实装载**——它不施加严格注入门禁，缺 `inject` 的启动即崩
    照不出来。
 
-**零依赖包的安装说明只给 git 源**：本地目录装在 profile 树外解析不到官方包（[13-gotchas.md](references/13-gotchas.md) 6），只用于开发自测且要先 link SDK。
+**用户安装按实际分发渠道验证**：已发布 npm 优先；git 源需含产物或明确构建授权；tarball 检查实际内容。本地 link 只作开发证据，不能代替分发物安装。
 
 ## Step 5b：交付检查与发布
 
 做完插件先过 **交付检查清单**（与是否公开无关），再决定要不要公开分发：
 
-- [ ] 入口 / `dsh.bundle.patch` / insert 行与包名同源；依赖三字段为空
+- [ ] 入口 / `dsh.bundle.patch` / insert 行与包名同源；依赖按 [05](references/05-bundle-plugins.md) 分工
 - [ ] 图标已绘制并**实际看过**渲染结果（Step 2b）
 - [ ] 带 UI 时过了 [06-ui-style.md](references/06-ui-style.md) 的交付前视觉自检
-- [ ] 安装冒烟含一次**真实工具/命令调用**，且做过负控；改动已在**独立实例**（新 `DSH_HOME` + `--port 0`）里跑过，URL + 测试点已交给用户手动测试
+- [ ] 按 [16](references/16-engineering-patterns.md) 取改动面的证据：实际发布物激活、真功能调用、对应负控；UI 在手动隔离站验收；不得用历史记录充当本次实跑
 - [ ] README 只含使用者内容 + `## 兼容性` 节 + `## 插件管理` 节
 
 完整清单与公开发布（description / topics）见 [11-publish.md](references/11-publish.md)；
-市场、社区与曝光渠道见 [12-ecosystem.md](references/12-ecosystem.md)。
+市场、社区与曝光渠道见 [12-ecosystem.md](references/12-ecosystem.md)——公开发布后按 §D
+「投稿渠道：awesome-dsh-plugin」提一条收录 PR（主流曝光入口；对外动作先取用户同意）。
 
 ## Step 6：开发规范
 
-可维护的插件遵循 `references/09-dev-conventions.md` 的纪律：门禁（自证测试）、
-每个非平凡改动的决策记录、生成物不手改、首次环境行为沉淀为环境事实。
+工程路线与最低门禁见 [16](references/16-engineering-patterns.md)，纪律与决策记录见 [09](references/09-dev-conventions.md)。
 
-**README 规范**（make-skill spec + 用户 2026-09 定调）——**骨架直接抄 [templates/README.md](templates/README.md)**，按注释删块、替换占位符。高星插件的四个可吸收写法：
+README 从 `$_S/templates/README.md` 适配；完整交付清单在 [11](references/11-publish.md)：
 
-- **头部**：社媒预览图 + 语言互链 + 徽章（npm / stars / dsh 版本），可选但很吃第一眼；
-- **安装先 GUI 后 CLI**：有 Plugins 页入口就先写「Plugins → 添加插件」，再给 CLI 与升级命令，并写清"装不上时"的典型症状；
-- **"用起来"用面×截图×问题表**：每个界面/页签/命令一节，配一张图 + 一张「它回答什么问题」的表（多状态分开截图，不拼图）；
-- **安全与数据**单独一节：权限、外发、凭据放哪（有网络/执行/写文件时必写）；
-- **宿主矩阵**：web / 官方 Desktop 分开写（安装互不相通），跨大版本给"宿主 × 插件版本"对应表；
-- **装好之后怎么确认** + **卸载命令**：各 2–3 行，比让用户猜省事；
-- **dsh 生态徽章**（可选）：awesome-dsh-plugin、dsh-plugin.org `listed`、dshfind、Hub——**被收录后才放**。
-
-**README 的读者是「用这个插件的人」，不是维护者。** 一条内容留不留，就看
-"用户拿它做决定"吗（装不装、怎么配、会不会踩坑）——只有"改这个插件的人"才用得
-上的，一律移走。README 变成工程备忘录是**最常见的跑偏**：信息都真、都重要，但
-读者不对，真正需要的那几句被淹掉（反例：某插件 README 602 行，安装节在第 573 行）。
-
-- **写**：这是什么（一句话方案）；**为什么需要它**（动机——要解决的具体问题、用户
-  当前不得不忍受什么、这个方案把什么交给了工具）；怎么装（含"装完要重启"这类生效
-  条件）；用起来是什么样（用户可见的行为——界面多了什么、列表里的名字长什么样、
-  注入行怎么呈现）；能力面表格；参数与环境变量；**已知限制**（用户会撞上的边界、
-  安全注意事项）；`## 插件管理` 固定节；许可。
-- **动机要写"用户视角的痛"**，不是设计目标：用"你现在必须怎样、代价是什么"说话，
-  并**讲清与相邻方案的区别**（官方能力 / 同类插件，谁发起、用户要做什么）——
-  这是使用者判断"要不要装"的主要依据。
-- **边界要诚实**：说清它**不解决什么**（例如"某种等待是问题本身的性质"）。只写
-  好处的 README 在真实使用里会被立刻发现，代价比少写一段大。
-- **不写**（工程备忘录）：内部事件/API 挂钩点、实现范围与机制表、验证证据与测试
-  计数、E2E 台怎么跑、设计取舍的来由、踩坑与事故复盘、与官方包内部的契约。
-  它们写到**别处**——仓库本地 `AGENTS.local.md`（不入库）、代码注释，或仓库内
-  单独的 `docs/engineering-notes.md`；README 只在安装节留**一句**指针。
-- **能力面**用表格：每个能力面一个表、每项一行一句话；人扫描表格决定用什么，
-  细节留在各项自身文件。
-- 自检：README 超过 ~200 行基本已经跑偏，逐段问一遍"这段的读者是谁"。
-
-**`## 兼容性` 节（必含，随每次更新核对）**：用户装之前只有这一节能回答"我这版 dsh 能不能用"。
-写**实测过的 dsh 版本 + 验证日期**，并承认没测过的边界；不写"latest / 要求最新版"这类会立刻过期的断言
-（上游一个月走几千 commit）。取版本号：`dsh --version`，或官方仓库 tag `dsh-v<版本>`。
-
-```
-## 兼容性
-
-| dsh 版本 | 状态 |
-|---|---|
-| `0.2.0-rc.2` | ✅ 已验证（2026-10-15） |
-| 其它版本 | ⚠️ 未验证——升级 dsh 后若 <用户可见症状>，多半是 <一行原因> |
-```
-
-- **与 `peerDependencies` 同源**：声明了官方 peer 范围（见 [05-bundle-plugins.md](references/05-bundle-plugins.md)）
-  的插件，README 写的"已验证基线"必须是那个范围的**下限**（例：peer `^0.2.0-rc.2` ⇄ README 写
-  `0.2.0-rc.2`）——两处不一致时用户会照 README 装上却被宿主预检整行禁用。多支持线插件
-  按 [DSH-better-sidebar](https://github.com/vlln/DSH-better-sidebar) 的"按你的 dsh 版本选插件版本"
-  表写（每行：dsh 范围 / 安装命令 / 插件版本）；`workspace:^` 这类"跟随运行时"的 peer 不该配一张版本表。
-- **每次更新插件后同步核对本节**：改了机制挂钩点、client 契约或设置面就重新实测，把新基线
-  与日期写进来（旧版本行保留或改标"未验证"，不要留着假断言）；纯文案/内部重构不动它。
-- 这一节只放**面向用户**的结论（能用/不能用、症状）；验证过程与证据仍归
-  `AGENTS.local.md` / `docs/engineering-notes.md`。
-
-**标题格式**（强制）：
-- `<h1 align="center">插件名</h1>`——**居中**；用仓库/插件名（如
-  `whale-girl`、`loop`），**不加 npm 前缀**（不要写 `@vlln/dsh-loop`
-  或 `@scope/name` 作为标题）。
-- 标题下加 `<p align="center">` 一句话价值主张（是什么 + 主要收益）+ 可选
-  徽章（badgen：license/format）。
-
-**图片要求**（若有 UI 或可演示的行为）：README 应含至少一张功能图片——
-状态/界面/效果截图或 gif。Agent 在验证环境截取或提示人工截取后放入
-`docs/` 并引用；图片路径相对仓库内（如 `docs/preview/*.gif`），md-links
-可解析。纯 CLI 工具无 UI 可豁免，但 README 应有可演示的示例输出。
-
-**能力面表格**：
-
-- **Skills**（恒有）：`| Skill | 作用 |`——每个 SKILL.md 一行。
-- **MCP servers**（若含 `dsh.mcpServers`）：`| MCP | 说明 |`——每个
-  server 一行（名称 + 暴露什么）。
-- **Tools**（若注册工具）：`| 工具 | 说明 |`——每个 `defineTool` 注册一行。
-
-适用于任何带 skills/MCP/tools 的仓库。
-
-**推荐管理章节**（README 固定含一节，向用户推荐插件管理方式）：插件装/卸/启停用官方 CLI
-与官方 Plugins 页，不要在 README 里引导用户手改 profile 配置：
-
-```
-## 插件管理
-
-装/卸/启停用官方 CLI：`dsh plugin --profile web add|remove <包>`；已装插件在**侧边栏 Plugins 页**
-里查看与配置——每个插件自己的配置页挂在那个包页上（Settings 里的「插件」只是只读清单，改不了配置）。
-```
-
-每个按本 skill 产出的插件 README 都带此节（安装说清通道与重启条件即可）。
-
-**进入迭代期时读 `references/09-dev-conventions.md`**。
+- 读者是使用者：一句话定位、用户痛点、用起来什么样、可复制安装与卸载、配置、限制、安全与数据。工程机制/测试过程放维护文档，不塞 README。
+- 居中标题用插件名，不加 npm scope；若有 UI 或可演示行为，放真实截图/动图/示例。徽章只有被收录或已发布后才放。
+- 有 GUI 时安装说明先 GUI 后 CLI；各宿主分开写。能力表只列实际分发的 tools / skills / MCP，不创建空表。
+- 必含「兼容性」「插件管理」；兼容性写实测宿主版本、日期与未测边界。声明的 engines/peer 范围必须包含实测版本；未测下限不得标成已验证。
+- 修改宿主挂钩点、client 或设置契约后重新实测；纯文案与内部重构不冒充兼容性升级。
+- 新机制或纠错只在对应 reference 维护正文，入口/清单保留指针；不要让旧摘要压过新证据。
 
 ## 坑（Gotchas）
 
-高频坑（官方包不可单独安装、ESM 缓存、严格注入、宿主 CSS 覆盖、entry 契约
+高频坑（SDK 解析与版本闭包、ESM 缓存、严格注入、宿主 CSS 覆盖、entry 契约
 失败时机等）见 [13-gotchas.md](references/13-gotchas.md)（唯一清单）；**先读它再动手**。
 手册索引见上文 §2；参考实现（`whale-girl` / `dsh-loop` / 薄控制台）见 [12-ecosystem.md](references/12-ecosystem.md) §E。
 
